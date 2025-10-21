@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>🎃 Манікюр на Гелловін!</title>
-  <!-- Виправлення favicon: data URL з емодзі, щоб уникнути 404 -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎃</text></svg>">
   <style>
     * {
@@ -26,18 +25,17 @@
       left: 0;
       width: 100%;
       height: 100%;
-      object-fit: contain; /* Виправлення: contain для уникнення обрізання */
+      object-fit: contain;
     }
     #video {
       z-index: 5;
-      background: black; /* Виправлення: чорний фон, якщо відео не завантажилось */
+      background: black;
     }
     #canvas {
       z-index: 10;
       background: transparent;
     }
 
-    /* Кнопка мови */
     #langBtn {
       position: fixed;
       top: 16px;
@@ -62,7 +60,6 @@
       transform: scale(1.1);
     }
 
-    /* Звукова кнопка */
     #soundBtn {
       position: fixed;
       top: 20px;
@@ -87,7 +84,6 @@
       transform: scale(1.1);
     }
 
-    /* Кнопки режиму */
     #modeControls {
       position: fixed;
       top: 90px;
@@ -117,7 +113,6 @@
       animation: pulse 1.5s infinite;
     }
 
-    /* Дизайни з прокруткою */
     #designPicker {
       position: fixed;
       bottom: 20px;
@@ -203,6 +198,21 @@
       top: 100px;
       color: white;
     }
+
+    #tipOverlay {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.7);
+      padding: 20px;
+      border-radius: 10px;
+      color: white;
+      font-size: 18px;
+      z-index: 99;
+      display: none;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -225,9 +235,20 @@
   <div id="designPicker"></div>
   <div id="cameraIndicator">📹 Задня камера активна</div>
   <div id="handIndicator">✋ Рука не виявлена</div>
+  <div id="tipOverlay">Тримайте руку так, щоб було видно ваші нігті</div>
 
   <script type="module">
     import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm";
+
+    // Константи для індексів лендмарків
+    const FINGER_INDICES = {
+      thumb: { tip: 4, dip: 3, pip: 2, mcp: 1 },
+      index: { tip: 8, dip: 7, pip: 6, mcp: 5 },
+      middle: { tip: 12, dip: 11, pip: 10, mcp: 9 },
+      ring: { tip: 16, dip: 15, pip: 14, mcp: 13 },
+      pinky: { tip: 20, dip: 19, pip: 18, mcp: 17 }
+    };
+    const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 
     const translations = {
       en: {
@@ -276,11 +297,12 @@
     const designPicker = document.getElementById("designPicker");
     const cameraIndicator = document.getElementById("cameraIndicator");
     const handIndicator = document.getElementById("handIndicator");
+    const tipOverlay = document.getElementById("tipOverlay");
 
     function updateTexts(isRearCamera = true) {
       document.title = translations[currentLang].title;
       langBtn.textContent = currentLang.toUpperCase();
-      langBtn.setAttribute('aria-label', currentLang === 'en' ? 'Переключити на українську' : 'Switch to English');
+      langBtn.setAttribute('aria-label', currentLang === 'en' ? 'Switch to Ukrainian' : 'Переключити на українську');
       
       loading.innerHTML = `
         🎃 ${translations[currentLang].loading}
@@ -309,9 +331,8 @@
     let bgAudio, clickAudio;
     let lastLandmarks = null;
     let smoothedLandmarks = null;
-    const SMOOTHING_FACTOR = 0.7; // Виправлення: збільшено для кращої стабільності
+    const SMOOTHING_FACTOR = 0.7;
     let needsRedraw = true;
-    let isRearCamera = true; // Змінна для перевірки типу камери
 
     function initAudio() {
       bgAudio = new Audio("audio/bg-music.mp3");
@@ -331,6 +352,8 @@
     }
 
     async function loadDesigns() {
+      // Прогрес завантаження
+      loading.innerHTML += '<p>Завантаження дизайнів...</p>';
       const promises = DESIGNS.map(name => new Promise((resolve, reject) => {
         const img = new Image();
         img.src = `nails/halloween/${name}.png`;
@@ -352,6 +375,7 @@
       designPicker.innerHTML = "";
       DESIGNS.forEach(name => {
         const btn = document.createElement("img");
+        btn.loading = "lazy"; // Ліниве завантаження
         btn.src = `nails/halloween/${name}.png`;
         btn.className = "design-btn";
         btn.alt = `Дизайн нігтів ${name}`;
@@ -396,19 +420,23 @@
       }
     };
 
+    async function getUserMediaWrapper(facingMode) {
+      return navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: facingMode,
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      });
+    }
+
     async function setupCamera() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { 
-            facingMode: "environment",
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          }
-        });
+        const stream = await getUserMediaWrapper("environment");
         video.srcObject = stream;
         cameraIndicator.style.display = 'block';
-        isRearCamera = stream.getVideoTracks()[0].getCapabilities().facingMode === 'environment';
-        updateTexts(isRearCamera);
+        const isRear = stream.getVideoTracks()[0].getCapabilities().facingMode === 'environment';
+        updateTexts(isRear);
         return new Promise(resolve => {
           video.onloadedmetadata = () => {
             video.play();
@@ -417,16 +445,9 @@
         });
       } catch (e) {
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { 
-              facingMode: "user",
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            }
-          });
+          const stream = await getUserMediaWrapper("user");
           video.srcObject = stream;
           cameraIndicator.style.display = 'block';
-          isRearCamera = false;
           updateTexts(false);
           return new Promise(resolve => {
             video.onloadedmetadata = () => {
@@ -457,21 +478,20 @@
     }
 
     function getClosestFinger(touchX, touchY, landmarks) {
-      const fingerTips = [4, 8, 12, 16, 20];
       let minDist = Infinity;
       let closestIndex = -1;
       
-      for (let i = 0; i < fingerTips.length; i++) {
-        const lm = landmarks[fingerTips[i]];
-        const x = lm.x * canvas.width;
-        const y = lm.y * canvas.height;
-        const dist = Math.hypot(touchX - x, touchY - y);
+      FINGER_KEYS.forEach((key, i) => {
+        const lm = landmarks[FINGER_INDICES[key].tip];
+        const xLm = lm.x * canvas.width;
+        const yLm = lm.y * canvas.height;
+        const dist = Math.hypot(touchX - xLm, touchY - yLm);
         
         if (dist < minDist && dist < canvas.width * 0.1) {
           minDist = dist;
           closestIndex = i;
         }
-      }
+      });
       return closestIndex;
     }
 
@@ -486,21 +506,19 @@
       needsRedraw = true;
     });
 
-    function calculateNailSize(landmarks, fingerIndex) {
-      const fingerTips = [4, 8, 12, 16, 20];
-      const fingerBases = [1, 5, 9, 13, 17];
-      const tip = landmarks[fingerTips[fingerIndex]];
-      const base = landmarks[fingerBases[fingerIndex]];
-      const dist = Math.hypot((tip.x - base.x) * canvas.width, (tip.y - base.y) * canvas.height);
-      return Math.max(30, dist * 0.6); // Виправлення: зменшено розмір для кращого накладання
+    function calculateNailSize(landmarks, fingerKey) {
+      const indices = FINGER_INDICES[fingerKey];
+      const tip = landmarks[indices.tip];
+      const dip = landmarks[indices.dip];
+      const dist = Math.hypot((tip.x - dip.x) * canvas.width, (tip.y - dip.y) * canvas.height);
+      return Math.max(30, dist * 1.5); // Виправлення: адаптований розмір
     }
 
-    function calculateNailAngle(landmarks, fingerIndex) {
-      const fingerTips = [4, 8, 12, 16, 20];
-      const fingerBases = [1, 5, 9, 13, 17];
-      const tip = landmarks[fingerTips[fingerIndex]];
-      const base = landmarks[fingerBases[fingerIndex]];
-      return Math.atan2(tip.y - base.y, tip.x - base.x) * 180 / Math.PI;
+    function calculateNailAngle(landmarks, fingerKey) {
+      const indices = FINGER_INDICES[fingerKey];
+      const dip = landmarks[indices.dip];
+      const pip = landmarks[indices.pip];
+      return Math.atan2(dip.y - pip.y, dip.x - pip.x) * 180 / Math.PI;
     }
 
     function renderAR(landmarks) {
@@ -508,40 +526,44 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
 
-      // Виправлення: дзеркальне відображення тільки для передньої камери
-      if (!isRearCamera) {
-        ctx.scale(-1, 1);
-        ctx.translate(-canvas.width, 0);
-      }
-
-      const fingerTips = [4, 8, 12, 16, 20];
       const img = nailImages[currentDesign];
       
       if (!img || !img.complete) return;
 
-      for (let i = 0; i < fingerTips.length; i++) {
-        if (!isApplyAll && i !== selectedFingerIndex) continue;
+      FINGER_KEYS.forEach((key, i) => {
+        if (!isApplyAll && i !== selectedFingerIndex) return;
         
-        const lm = landmarks[fingerTips[i]];
+        const indices = FINGER_INDICES[key];
+        const lm = landmarks[indices.tip];
         const x = lm.x * canvas.width;
         const y = lm.y * canvas.height;
 
+        const size = calculateNailSize(landmarks, key);
+        const angle = calculateNailAngle(landmarks, key);
+
+        // Маскування для форми нігтя (еліпс)
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle * Math.PI / 180);
+        ctx.beginPath();
+        ctx.ellipse(0, -size * 0.3, size / 2, size / 3, 0, 0, 2 * Math.PI); // Овальна форма нігтя
+        ctx.clip();
+        ctx.drawImage(img, -size / 2, -size * 0.6, size, size / 2); // Проекція текстури
+        ctx.restore();
+
+        // Візуалізація обраного пальця (жовтий еліпс)
         if (!isApplyAll && i === selectedFingerIndex) {
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(angle * Math.PI / 180);
           ctx.beginPath();
-          ctx.arc(x, y, 10, 0, 2 * Math.PI);
+          ctx.ellipse(0, -size * 0.3, size / 2 + 2, size / 3 + 2, 0, 0, 2 * Math.PI);
           ctx.strokeStyle = "yellow";
           ctx.lineWidth = 3;
           ctx.stroke();
+          ctx.restore();
         }
-
-        const size = calculateNailSize(landmarks, i);
-        const angle = calculateNailAngle(landmarks, i);
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(angle * Math.PI / 180); // Виправлення: скориговано кут (без +90)
-        ctx.drawImage(img, -size / 2, -size * 0.6, size, size / 2); // Виправлення: офсет y для кращого позиціонування на нігтях
-        ctx.restore();
-      }
+      });
 
       ctx.restore();
       needsRedraw = false;
@@ -589,7 +611,7 @@
 
         let lastVideoTime = -1;
         
-        const predict = () => {
+        const predict = (metadata) => {
           if (handLandmarker && video.readyState >= 2) {
             const currentTime = performance.now();
             
@@ -599,9 +621,11 @@
               if (predictions.landmarks && predictions.landmarks.length > 0) {
                 lastLandmarks = smoothLandmarks(predictions.landmarks[0]);
                 handIndicator.style.display = 'none';
+                tipOverlay.style.display = 'none';
                 renderAR(lastLandmarks);
               } else {
                 handIndicator.style.display = 'block';
+                tipOverlay.style.display = 'block';
                 if (needsRedraw) {
                   ctx.clearRect(0, 0, canvas.width, canvas.height);
                   needsRedraw = false;
@@ -611,10 +635,19 @@
               lastVideoTime = currentTime;
             }
           }
-          requestAnimationFrame(predict);
+          // Виправлення: FPS throttle з requestVideoFrameCallback
+          if (video.requestVideoFrameCallback) {
+            video.requestVideoFrameCallback(predict);
+          } else {
+            requestAnimationFrame(predict);
+          }
         };
         
-        predict();
+        if (video.requestVideoFrameCallback) {
+          video.requestVideoFrameCallback(predict);
+        } else {
+          requestAnimationFrame(predict);
+        }
 
         window.addEventListener("beforeunload", () => {
           if (video.srcObject) {
