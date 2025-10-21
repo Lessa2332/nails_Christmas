@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="AR-сцена зі свічкою для дітей">
+    <title>🕯️«Свічка на долоні» 🔥</title>
+
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+    
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: transparent;
+        }
+        
+        a-scene {
+            width: 100% !important;
+            height: 100% !important;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background: transparent;
+        }
+
+        .arjs-loader {
+            height: 100%;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: rgba(135, 206, 235, 0.2);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #FF4500;
+            font-size: 1.8em;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive, sans-serif;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse { animation: pulse 1.5s infinite; }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            display: flex;
+            gap: 10px;
+        }
+
+        .sound-btn, .youtube-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive, sans-serif;
+            font-size: 1em;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-decoration: none;
+        }
+
+        .sound-btn { background-color: #4CAF50; color: white; }
+        .sound-btn.off { background-color: #f44336; }
+        .youtube-btn { background-color: #FF9800; color: white; }
+        .youtube-btn:hover { background-color: #FFB300; }
+    </style>
+</head>
+<body>
+    <div class="arjs-loader" id="loader">
+        <div class="pulse">🕯️ Свічка на долоні 🔥</div>
+        <div style="margin-top: 20px; font-size: 1.2em;">Наведи камеру на маркер! 😊🔥</div>
+    </div>
+
+    <a-scene
+        mindar-image="imageTargetSrc: ./targets.mind;"
+        vr-mode-ui="enabled: false"
+        device-orientation-permission-ui="enabled: false"
+        loading-screen="enabled: false"
+        embedded
+        renderer="colorManagement: true; physicallyCorrectLights: true;"
+        touch-gestures
+    >
+        <a-assets>
+            <audio id="bg-music" src="./message.mp3" preload="auto" loop></audio>
+            <img id="candle-texture" src="./tilo.png">
+        </a-assets>
+
+        <a-camera
+            id="camera"
+            position="0 0 1.5"
+            look-controls="enabled: false"
+        ></a-camera>
+
+        <a-entity mindar-image-target="targetIndex: 0">
+            <a-entity id="candle" position="0 0 -0.5" scale="0.5 0.5 0.5" visible="false">
+                <!-- Тіло свічки (циліндр) -->
+                <a-cylinder id="candle-body" position="0 0 0" radius="0.1" height="0.8" material="src: #candle-texture; transparent: false; opacity: 1"></a-cylinder>
+                
+                <!-- Полум'я (конус, який буде масштабуватися по Y) -->
+                <a-cone id="flame" position="0 0.45 0" radius-bottom="0.05" radius-top="0" height="0.2" color="#FF4500" emissive="#FF4500" emissive-intensity="0.5" material="opacity: 0.8; transparent: true" visible="false">
+                    <a-animation attribute="position" from="0 0.45 0" to="0 0.47 0" dur="500" direction="alternate" repeat="indefinite" easing="ease-in-out"></a-animation>
+                    <a-animation attribute="scale" from="1 1 1" to="1 1.1 1" dur="300" direction="alternate" repeat="indefinite" easing="ease-in-out"></a-animation>
+                </a-cone>
+                
+                <!-- Світло від полум'я -->
+                <a-light id="flame-light" type="point" color="#FF4500" intensity="1" distance="5" position="0 0.45 0" visible="false"></a-light>
+            </a-entity>
+        </a-entity>
+    </a-scene>
+
+    <div class="controls">
+        <button id="sound-btn" class="sound-btn">Увімкнути звук</button>
+        <button id="mic-btn" class="sound-btn">Увімкнути мікрофон</button>
+        <a href="https://www.youtube.com/playlist?list=PL6UDFwT9TzFw5K8Tzu_OgsDz7vV3N9eY-" target="_blank" class="youtube-btn">YouTube SmartLessa</a>
+    </div>
+
+    <script>
+        // Адаптивність для повного екрану
+        function fixHeight() {
+            document.body.style.height = window.innerHeight + 'px';
+        }
+        fixHeight();
+        window.addEventListener('resize', fixHeight);
+
+        // Посилання на елементи
+        const loader = document.querySelector('#loader');
+        const targetEntity = document.querySelector('[mindar-image-target]');
+        const candle = document.querySelector('#candle');
+        const flame = document.querySelector('#flame');
+        const flameLight = document.querySelector('#flame-light');
+        const bgMusic = document.querySelector('#bg-music');
+        const soundBtn = document.querySelector('#sound-btn');
+        const micBtn = document.querySelector('#mic-btn');
+
+        let audioContext, analyser, dataArray, micStream;
+        let isFlameOn = false; // Стан полум'я
+
+        // Компонент для обробки сенсорних жестів
+        AFRAME.registerComponent('touch-gestures', {
+            schema: {
+                minScale: { type: 'number', default: 0.2 },
+                maxScale: { type: 'number', default: 3.0 },
+                rotationSpeed: { type: 'number', default: 2.0 }
+            },
+            init: function () {
+                this.isRotating = false;
+                this.isPinching = false;
+                this.startPos = { x: 0, y: 0 };
+                this.currentScale = 1;
+                this.candle = document.querySelector('#candle');
+
+                if (!this.candle) {
+                    console.error('Свічка не знайдена в компоненті touch-gestures');
+                    return;
+                }
+
+                this.el.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    if (e.touches.length === 1) {
+                        this.isRotating = true;
+                        this.startPos.x = e.touches[0].pageX;
+                        this.startPos.y = e.touches[0].pageY;
+                    } else if (e.touches.length === 2) {
+                        this.isPinching = true;
+                        this.isRotating = false;
+                        this.initialDistance = Math.hypot(
+                            e.touches[0].pageX - e.touches[1].pageX,
+                            e.touches[0].pageY - e.touches[1].pageY
+                        );
+                        this.currentScale = this.candle.object3D.scale.x;
+                    }
+                });
+
+                this.el.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    if (this.isPinching && e.touches.length === 2) {
+                        const currentDistance = Math.hypot(
+                            e.touches[0].pageX - e.touches[1].pageX,
+                            e.touches[0].pageY - e.touches[1].pageY
+                        );
+                        const scaleFactor = currentDistance / this.initialDistance;
+                        const newScale = Math.max(this.data.minScale, Math.min(this.data.maxScale, this.currentScale * scaleFactor));
+                        this.candle.object3D.scale.set(newScale, newScale, newScale);
+                    } else if (this.isRotating && e.touches.length === 1) {
+                        const deltaX = (e.touches[0].pageX - this.startPos.x) * this.data.rotationSpeed;
+                        const deltaY = (e.touches[0].pageY - this.startPos.y) * this.data.rotationSpeed;
+                        this.candle.object3D.rotation.y += THREE.MathUtils.degToRad(deltaX);
+                        this.candle.object3D.rotation.x += THREE.MathUtils.degToRad(deltaY);
+                        this.startPos.x = e.touches[0].pageX;
+                        this.startPos.y = e.touches[0].pageY;
+                    }
+                });
+
+                this.el.addEventListener('touchend', () => {
+                    this.isRotating = false;
+                    this.isPinching = false;
+                });
+            }
+        });
+
+        // Функція для ініціалізації мікрофона та аналізу аудіо
+        async function initMic() {
+            try {
+                micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createMediaStreamSource(micStream);
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                source.connect(analyser);
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                micBtn.classList.remove('off');
+                micBtn.textContent = 'Вимкнути мікрофон';
+                updateFlame(); // Почати оновлення полум'я
+            } catch (err) {
+                console.error('Помилка доступу до мікрофона:', err);
+            }
+        }
+
+        // Функція для оновлення полум'я на основі гучності
+        function updateFlame() {
+            if (!analyser) return;
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                sum += dataArray[i];
+            }
+            const avg = sum / dataArray.length;
+            const volume = Math.min(1, avg / 128); // Нормалізуємо до 0-1
+
+            // Активація полум'я при достатній гучності
+            if (volume > 0.2 && !isFlameOn) { // Поріг гучності для активації полум'я
+                isFlameOn = true;
+                flame.setAttribute('visible', 'true');
+                flameLight.setAttribute('visible', 'true');
+            }
+
+            if (isFlameOn) {
+                // Зміна висоти полум'я (видовження)
+                const flameHeight = 0.2 + volume * 0.9; // Збільшено множник з 0.3 до 0.5
+                flame.setAttribute('height', flameHeight);
+                flame.setAttribute('position', `0 ${0.4 + flameHeight / 2} 0`);
+
+                // Зміна яскравості світла
+                const lightIntensity = 1 + volume * 6;
+                flameLight.setAttribute('intensity', lightIntensity);
+
+                // Зміна emissive-intensity для полум'я
+                flame.setAttribute('emissive-intensity', 0.5 + volume * 2);
+            }
+
+            requestAnimationFrame(updateFlame);
+        }
+
+        // Логіка відстеження маркера
+        if (targetEntity) {
+            targetEntity.addEventListener('targetFound', () => {
+                console.log("🎯 Маркер знайдено! Свічка з'явилася.");
+                loader.style.display = 'none';
+                if (candle) {
+                    candle.setAttribute('visible', 'true');
+                }
+                if (bgMusic && bgMusic.paused) {
+                    bgMusic.play().catch(e => console.log("🔇 Помилка відтворення музики:", e));
+                    soundBtn.classList.remove('off');
+                    soundBtn.textContent = 'Вимкнути звук';
+                }
+            });
+
+            targetEntity.addEventListener('targetLost', () => {
+                console.log("ℹ️ Маркер втрачено.");
+                if (candle) {
+                    candle.setAttribute('visible', 'false');
+                }
+                if (bgMusic && !bgMusic.paused) bgMusic.pause();
+                loader.style.display = 'flex';
+                loader.querySelector('.pulse').textContent = '🕯️ Свічка на долоні 🔥';
+                loader.querySelector('div[style]').textContent = 'Наведи камеру на маркер! 😊🔥';
+            });
+        } else {
+            console.error('Елемент mindar-image-target не знайдено!');
+        }
+
+        // Обробка кнопки звуку
+        soundBtn.addEventListener('click', () => {
+            if (bgMusic.paused) {
+                bgMusic.play().catch(e => console.log("🔇 Помилка відтворення музики:", e));
+                soundBtn.classList.remove('off');
+                soundBtn.textContent = 'Вимкнути звук';
+            } else {
+                bgMusic.pause();
+                soundBtn.classList.add('off');
+                soundBtn.textContent = 'Увімкнути звук';
+            }
+        });
+
+        // Обробка кнопки мікрофона
+        micBtn.addEventListener('click', () => {
+            if (!analyser) {
+                initMic();
+            } else {
+                if (micStream) {
+                    micStream.getTracks().forEach(track => track.stop());
+                }
+                if (audioContext) audioContext.close();
+                analyser = null;
+                micBtn.classList.add('off');
+                micBtn.textContent = 'Увімкнути мікрофон';
+                // Повернути полум'я до початкового стану (вимкнено)
+                isFlameOn = false;
+                flame.setAttribute('visible', 'false');
+                flameLight.setAttribute('visible', 'false');
+                flame.setAttribute('height', 0.2);
+                flame.setAttribute('position', '0 0.45 0');
+                flameLight.setAttribute('intensity', 1);
+                flame.setAttribute('emissive-intensity', 0.5);
+            }
+        });
+    </script>
+</body>
+</html>
+
