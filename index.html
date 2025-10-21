@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>🎃 Манікюр на Гелловін! (WebGL)</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎃</text></svg>">
+  <link rel="icon" href="image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎃</text></svg>">
   <style>
     * {
       margin: 0;
@@ -25,7 +25,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      object-fit: cover;
       display: none;
     }
     #video {
@@ -55,9 +55,7 @@
       font-weight: bold;
       transition: transform 0.2s;
     }
-    #langBtn:hover {
-      transform: scale(1.1);
-    }
+    #langBtn:hover { transform: scale(1.1); }
 
     #soundBtn {
       position: fixed;
@@ -79,9 +77,7 @@
       z-index: 100;
       transition: transform 0.2s;
     }
-    #soundBtn:hover {
-      transform: scale(1.1);
-    }
+    #soundBtn:hover { transform: scale(1.1); }
 
     #modeControls {
       position: fixed;
@@ -104,9 +100,7 @@
       box-shadow: 0 4px 8px rgba(0,0,0,0.3);
       transition: transform 0.2s;
     }
-    .mode-btn:hover {
-      transform: scale(1.05);
-    }
+    .mode-btn:hover { transform: scale(1.05); }
     .mode-btn.active {
       background: #ff4757;
       animation: pulse 1.5s infinite;
@@ -236,6 +230,7 @@
   <div id="handIndicator">✋ Рука не виявлена</div>
   <div id="tipOverlay">Тримайте руку так, щоб було видно ваші нігті</div>
 
+  <!-- ✅ Без зайвих пробілів -->
   <script type="importmap">
     {
       "imports": {
@@ -247,14 +242,15 @@
   <script type="module">
     import * as THREE from 'three';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-    import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm";
+    // ✅ Без /+esm і без пробілів
+    import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
 
     const FINGER_INDICES = {
-      thumb: { tip: 4, dip: 3, pip: 2, mcp: 1 },
-      index: { tip: 8, dip: 7, pip: 6, mcp: 5 },
-      middle: { tip: 12, dip: 11, pip: 10, mcp: 9 },
-      ring: { tip: 16, dip: 15, pip: 14, mcp: 13 },
-      pinky: { tip: 20, dip: 19, pip: 18, mcp: 17 }
+      thumb: { tip: 4, mcp: 1 },
+      index: { tip: 8, mcp: 5 },
+      middle: { tip: 12, mcp: 9 },
+      ring: { tip: 16, mcp: 13 },
+      pinky: { tip: 20, mcp: 17 }
     };
     const FINGER_KEYS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
 
@@ -268,9 +264,7 @@
         cameraError: "❌ Could not access camera.<br>Try Chrome or Safari.",
         arError: "❌ AR failed to load.<br>Refresh the page.",
         retry: "Retry",
-        cameraIndicator: "📹 Camera Active",
         rearCamera: "📹 Rear Camera Active",
-        frontCamera: "📹 Front Camera Active",
         handNotDetected: "✋ Hand not detected"
       },
       uk: {
@@ -282,9 +276,7 @@
         cameraError: "❌ Не вдалося отримати доступ до камери.<br>Спробуйте у Chrome або Safari.",
         arError: "❌ Помилка завантаження AR.<br>Спробуйте оновити сторінку.",
         retry: "Повторити",
-        cameraIndicator: "📹 Камера активна",
         rearCamera: "📹 Задня камера активна",
-        frontCamera: "📹 Передня камера активна",
         handNotDetected: "✋ Рука не виявлена"
       }
     };
@@ -306,9 +298,7 @@
     const handIndicator = document.getElementById("handIndicator");
     const tipOverlay = document.getElementById("tipOverlay");
 
-    let needsRedraw = true;
-
-    function updateTexts(isRearCamera = true) {
+    function updateTexts() {
       document.title = translations[currentLang].title;
       langBtn.textContent = currentLang.toUpperCase();
       langBtn.setAttribute('aria-label', currentLang === 'en' ? 'Switch to Ukrainian' : 'Переключити на українську');
@@ -320,7 +310,7 @@
       
       applyAllBtn.textContent = translations[currentLang].allFingers;
       selectFingerBtn.textContent = translations[currentLang].pickFinger;
-      cameraIndicator.textContent = isRearCamera ? translations[currentLang].rearCamera : translations[currentLang].frontCamera;
+      cameraIndicator.textContent = translations[currentLang].rearCamera;
       handIndicator.textContent = translations[currentLang].handNotDetected;
     }
 
@@ -328,7 +318,7 @@
       currentLang = currentLang === 'en' ? 'uk' : 'en';
       localStorage.setItem('lang', currentLang);
       document.documentElement.lang = currentLang;
-      updateTexts(video.srcObject?.getVideoTracks()[0]?.getCapabilities().facingMode === 'environment');
+      updateTexts();
     };
 
     const DESIGNS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
@@ -349,18 +339,9 @@
       bgAudio.volume = 0.3;
       clickAudio.volume = 0.6;
       if (!isMuted) bgAudio.play().catch(e => console.log("Audio autoplay blocked:", e));
-
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden && !isMuted) {
-          bgAudio.pause();
-        } else if (!document.hidden && !isMuted) {
-          bgAudio.play().catch(() => {});
-        }
-      });
     }
 
     async function loadDesigns() {
-      loading.innerHTML += '<p>Завантаження дизайнів...</p>';
       const promises = DESIGNS.map(name => new Promise((resolve, reject) => {
         const img = new Image();
         img.src = `nails/halloween/${name}.png`;
@@ -385,13 +366,11 @@
         btn.loading = "lazy";
         btn.src = `nails/halloween/${name}.png`;
         btn.className = "design-btn";
-        btn.alt = `Дизайн нігтів ${name}`;
         if (name === currentDesign) btn.classList.add("selected");
         btn.onclick = () => {
           currentDesign = name;
           document.querySelectorAll(".design-btn").forEach(b => b.classList.remove("selected"));
           btn.classList.add("selected");
-          needsRedraw = true;
           if (!isMuted) {
             clickAudio.currentTime = 0;
             clickAudio.play().catch(() => {});
@@ -406,20 +385,17 @@
       selectedFingerIndex = -1;
       applyAllBtn.classList.add("active");
       selectFingerBtn.classList.remove("active");
-      needsRedraw = true;
     };
     
     selectFingerBtn.onclick = () => {
       isApplyAll = false;
       applyAllBtn.classList.remove("active");
       selectFingerBtn.classList.add("active");
-      needsRedraw = true;
     };
 
     soundBtn.onclick = () => {
       isMuted = !isMuted;
       soundBtn.textContent = isMuted ? "🔇" : "🎵";
-      soundBtn.setAttribute('aria-label', isMuted ? 'Увімкнути звук' : 'Вимкнути звук');
       if (isMuted) {
         bgAudio.pause();
       } else {
@@ -427,23 +403,14 @@
       }
     };
 
-    async function getUserMediaWrapper(facingMode) {
-      return navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: facingMode,
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      });
-    }
-
     async function setupCamera() {
       try {
-        const stream = await getUserMediaWrapper("environment");
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
         video.srcObject = stream;
         cameraIndicator.style.display = 'block';
-        const isRear = stream.getVideoTracks()[0].getCapabilities().facingMode === 'environment';
-        updateTexts(isRear);
+        updateTexts();
         return new Promise(resolve => {
           video.onloadedmetadata = () => {
             video.play();
@@ -451,23 +418,9 @@
           };
         });
       } catch (e) {
-        try {
-          const stream = await getUserMediaWrapper("user");
-          video.srcObject = stream;
-          cameraIndicator.style.display = 'block';
-          updateTexts(false);
-          return new Promise(resolve => {
-            video.onloadedmetadata = () => {
-              video.play();
-              resolve();
-            };
-          });
-        } catch (fallbackError) {
-          loading.innerHTML = `${translations[currentLang].cameraError}<br><button id="errorRetry">${translations[currentLang].retry}</button>`;
-          document.getElementById('errorRetry').onclick = setupCamera;
-          console.error("Camera error:", fallbackError);
-          throw fallbackError;
-        }
+        loading.innerHTML = `${translations[currentLang].cameraError}<br><button id="errorRetry">${translations[currentLang].retry}</button>`;
+        document.getElementById('errorRetry').onclick = setupCamera;
+        throw e;
       }
     }
 
@@ -485,17 +438,13 @@
     }
 
     function getClosestFinger(touchX, touchY, landmarks) {
-      if (!landmarks) return -1;
       let minDist = Infinity;
       let closestIndex = -1;
-      
       FINGER_KEYS.forEach((key, i) => {
         const lm = landmarks[FINGER_INDICES[key].tip];
-        if (!lm) return;
         const xLm = lm.x * canvas.width;
         const yLm = lm.y * canvas.height;
         const dist = Math.hypot(touchX - xLm, touchY - yLm);
-        
         if (dist < minDist && dist < canvas.width * 0.1) {
           minDist = dist;
           closestIndex = i;
@@ -512,17 +461,17 @@
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top;
       selectedFingerIndex = getClosestFinger(x, y, lastLandmarks);
-      needsRedraw = true;
     });
 
-    let scene, camera, renderer, videoTexture, nailGeometry, nailMaterial, nails = {};
+    // === WebGL ===
+    let scene, camera, renderer, videoTexture, nails = {};
     let handLandmarker;
 
     async function initWebGL() {
       scene = new THREE.Scene();
       camera = new THREE.OrthographicCamera(window.innerWidth / -2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / -2, 1, 1000);
       camera.position.z = 10;
-      renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
+      renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
 
       videoTexture = new THREE.VideoTexture(video);
@@ -532,12 +481,9 @@
 
       const vertexShader = `
         varying vec2 vUv;
-        uniform float curveStrength;
         void main() {
           vUv = uv;
-          vec3 pos = position;
-          pos.z += sin(uv.x * 3.14) * curveStrength; // Зігнення по X
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `;
       const fragmentShader = `
@@ -545,25 +491,22 @@
         uniform sampler2D nailTexture;
         void main() {
           vec4 color = texture2D(nailTexture, vUv);
-          if (color.a < 0.1) discard; // Прозорість
+          if (color.a < 0.1) discard;
           gl_FragColor = color;
         }
       `;
 
-      nailMaterial = new THREE.ShaderMaterial({
+      const nailMaterial = new THREE.ShaderMaterial({
         vertexShader,
         fragmentShader,
-        uniforms: {
-          curveStrength: { value: 0.1 },
-          nailTexture: { value: null }
-        },
-        transparent: true
+        uniforms: { nailTexture: { value: null } },
+        transparent: true,
+        depthTest: false
       });
 
       FINGER_KEYS.forEach(key => {
-        nailGeometry = new THREE.PlaneGeometry(1, 0.5, 10, 10);
-        const nail = new THREE.Mesh(nailGeometry, nailMaterial.clone());
-        nail.visible = false;
+        const geometry = new THREE.PlaneGeometry(1, 0.4); // ширина менша
+        const nail = new THREE.Mesh(geometry, nailMaterial.clone());
         nails[key] = nail;
         scene.add(nail);
       });
@@ -579,54 +522,55 @@
     }
 
     function updateNailPosition(landmarks, fingerKey) {
-      if (!landmarks || !landmarks.length) return;
-      const indices = FINGER_INDICES[fingerKey];
-      const tip = landmarks[indices.tip];
-      const dip = landmarks[indices.dip];
-      const pip = landmarks[indices.pip];
+      const { tip, mcp } = FINGER_INDICES[fingerKey];
+      const t = landmarks[tip];
+      const m = landmarks[mcp];
 
-      if (!tip || !dip || !pip) return;
+      // ✅ Кут між TIP і MCP
+      const angle = Math.atan2(t.y - m.y, t.x - m.x) + Math.PI / 2;
 
-      const x = (tip.x + dip.x + pip.x) / 3 * canvas.width;
-      const y = (tip.y + dip.y + pip.y) / 3 * canvas.height;
-      const size = Math.hypot((tip.x - pip.x) * canvas.width, (tip.y - pip.y) * canvas.height) * 1.5;
-      const curveStrength = Math.abs(tip.y - pip.y) * 0.2;
+      // ✅ Позиція посередині
+      const x = (t.x + m.x) / 2 * canvas.width;
+      const y = (t.y + m.y) / 2 * canvas.height;
+
+      // ✅ Пропорційний розмір
+      const size = Math.hypot((t.x - m.x) * canvas.width, (t.y - m.y) * canvas.height) * 0.6;
 
       const nail = nails[fingerKey];
       nail.position.set(x - canvas.width / 2, canvas.height / 2 - y, 0);
-      nail.scale.set(size, size / 2, 1);
-      nail.material.uniforms.curveStrength.value = curveStrength;
+      nail.rotation.z = angle;
+      nail.scale.set(size, size, 1); // тепер квадратний масштаб
+
       if (nailImages[currentDesign]) {
-        nail.material.uniforms.nailTexture.value = new THREE.Texture(nailImages[currentDesign]);
+        if (!nail.material.uniforms.nailTexture.value) {
+          nail.material.uniforms.nailTexture.value = new THREE.CanvasTexture(nailImages[currentDesign]);
+        } else {
+          nail.material.uniforms.nailTexture.value.image = nailImages[currentDesign];
+        }
         nail.material.uniforms.nailTexture.value.needsUpdate = true;
       }
     }
 
     function renderAR(landmarks) {
-      if (!landmarks || !landmarks.length) {
-        FINGER_KEYS.forEach(key => nails[key].visible = false);
-        renderer.render(scene, camera);
-        return;
-      }
-
       FINGER_KEYS.forEach((key, i) => {
+        const nail = nails[key];
         if (!isApplyAll && i !== selectedFingerIndex) {
-          nails[key].visible = false;
-          return;
+          nail.visible = false;
+        } else {
+          nail.visible = true;
+          updateNailPosition(landmarks, key);
         }
-        nails[key].visible = true;
-        updateNailPosition(landmarks, key);
       });
       renderer.render(scene, camera);
     }
 
+    // === Головна ініціалізація ===
     async function init() {
       try {
         await initWebGL();
         const vision = await FilesetResolver.forVisionTasks(
           "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
         );
-        
         handLandmarker = await HandLandmarker.createFromOptions(vision, {
           baseOptions: {
             modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
@@ -637,7 +581,6 @@
         });
 
         await setupCamera();
-        
         await loadDesigns();
         buildDesignUI();
         initAudio();
@@ -648,13 +591,11 @@
         canvas.style.display = 'block';
 
         let lastVideoTime = -1;
-        
-        const predict = (now, metadata) => {
+        const predict = (now) => {
           if (handLandmarker && video.readyState >= 2) {
             if (now - lastVideoTime > 100) {
               const predictions = handLandmarker.detectForVideo(video, now);
-              
-              if (predictions.landmarks && predictions.landmarks.length > 0) {
+              if (predictions.landmarks?.length > 0) {
                 lastLandmarks = smoothLandmarks(predictions.landmarks[0]);
                 handIndicator.style.display = 'none';
                 tipOverlay.style.display = 'none';
@@ -662,28 +603,30 @@
               } else {
                 handIndicator.style.display = 'block';
                 tipOverlay.style.display = 'block';
-                renderAR([]);
+                renderer.render(scene, camera);
               }
-              
               lastVideoTime = now;
             }
           }
-          video.requestVideoFrameCallback(predict);
+          if (video.requestVideoFrameCallback) {
+            video.requestVideoFrameCallback(predict);
+          } else {
+            requestAnimationFrame(predict);
+          }
         };
-        
-        video.requestVideoFrameCallback(predict);
+
+        if (video.requestVideoFrameCallback) {
+          video.requestVideoFrameCallback(predict);
+        } else {
+          requestAnimationFrame(predict);
+        });
 
         window.addEventListener("beforeunload", () => {
-          if (video.srcObject) {
-            video.srcObject.getTracks().forEach(track => track.stop());
-          }
-          if (handLandmarker) {
-            handLandmarker.close();
-          }
-          cameraIndicator.style.display = 'none';
+          video.srcObject?.getTracks().forEach(t => t.stop());
+          handLandmarker?.close();
         });
       } catch (e) {
-        console.error("Initialization error:", e);
+        console.error("Init error:", e);
         loading.innerHTML = `${translations[currentLang].arError}<br><button id="errorRetry">${translations[currentLang].retry}</button>`;
         document.getElementById('errorRetry').onclick = () => location.reload();
       }
