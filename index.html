@@ -240,7 +240,6 @@
   <script type="module">
     import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm";
 
-    // Константи для індексів лендмарків
     const FINGER_INDICES = {
       thumb: { tip: 4, dip: 3, pip: 2, mcp: 1 },
       index: { tip: 8, dip: 7, pip: 6, mcp: 5 },
@@ -352,7 +351,6 @@
     }
 
     async function loadDesigns() {
-      // Прогрес завантаження
       loading.innerHTML += '<p>Завантаження дизайнів...</p>';
       const promises = DESIGNS.map(name => new Promise((resolve, reject) => {
         const img = new Image();
@@ -375,7 +373,7 @@
       designPicker.innerHTML = "";
       DESIGNS.forEach(name => {
         const btn = document.createElement("img");
-        btn.loading = "lazy"; // Ліниве завантаження
+        btn.loading = "lazy";
         btn.src = `nails/halloween/${name}.png`;
         btn.className = "design-btn";
         btn.alt = `Дизайн нігтів ${name}`;
@@ -509,9 +507,9 @@
     function calculateNailSize(landmarks, fingerKey) {
       const indices = FINGER_INDICES[fingerKey];
       const tip = landmarks[indices.tip];
-      const dip = landmarks[indices.dip];
-      const dist = Math.hypot((tip.x - dip.x) * canvas.width, (tip.y - dip.y) * canvas.height);
-      return Math.max(30, dist * 1.5); // Виправлення: адаптований розмір
+      const pip = landmarks[indices.pip];
+      const dist = Math.hypot((tip.x - pip.x) * canvas.width, (tip.y - pip.y) * canvas.height);
+      return Math.max(30, dist * 1.5);
     }
 
     function calculateNailAngle(landmarks, fingerKey) {
@@ -519,6 +517,15 @@
       const dip = landmarks[indices.dip];
       const pip = landmarks[indices.pip];
       return Math.atan2(dip.y - pip.y, dip.x - pip.x) * 180 / Math.PI;
+    }
+
+    function calculateNailCurve(landmarks, fingerKey) {
+      const indices = FINGER_INDICES[fingerKey];
+      const tip = landmarks[indices.tip];
+      const dip = landmarks[indices.dip];
+      const pip = landmarks[indices.pip];
+      const curveHeight = Math.abs((tip.y - pip.y) * canvas.height) * 0.3; // Імітація вигину
+      return curveHeight;
     }
 
     function renderAR(landmarks) {
@@ -540,18 +547,17 @@
 
         const size = calculateNailSize(landmarks, key);
         const angle = calculateNailAngle(landmarks, key);
+        const curveHeight = calculateNailCurve(landmarks, key);
 
-        // Маскування для форми нігтя (еліпс)
+        // Імітація кривизни за допомогою трансформації
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(angle * Math.PI / 180);
-        ctx.beginPath();
-        ctx.ellipse(0, -size * 0.3, size / 2, size / 3, 0, 0, 2 * Math.PI); // Овальна форма нігтя
-        ctx.clip();
-        ctx.drawImage(img, -size / 2, -size * 0.6, size, size / 2); // Проекція текстури
+        ctx.transform(1, -curveHeight / size * 0.5, 0, 1, 0, 0); // Зсуваємо верхні точки вгору
+        ctx.drawImage(img, -size / 2, -size * 0.6, size, size / 2);
         ctx.restore();
 
-        // Візуалізація обраного пальця (жовтий еліпс)
+        // Візуалізація обраного пальця
         if (!isApplyAll && i === selectedFingerIndex) {
           ctx.save();
           ctx.translate(x, y);
@@ -635,7 +641,6 @@
               lastVideoTime = currentTime;
             }
           }
-          // Виправлення: FPS throttle з requestVideoFrameCallback
           if (video.requestVideoFrameCallback) {
             video.requestVideoFrameCallback(predict);
           } else {
