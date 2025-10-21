@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uk">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>🎃 Halloween Nail Try-On!</title>
+  <title>🎃 Манікюр на Гелловін!</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico"> <!-- Виправлення favicon, якщо є файл -->
   <style>
     * {
       margin: 0;
@@ -15,7 +16,7 @@
       background: #0f0c29;
       background: linear-gradient(to right, #24243e, #302b63, #0f0c29);
       overflow: hidden;
-      font-family: 'Arial', 'Comic Sans MS', cursive, sans-serif; /* Покращення: fallback на доступніший шрифт */
+      font-family: 'Arial', 'Comic Sans MS', cursive, sans-serif;
       color: white;
     }
     #video, #canvas {
@@ -26,16 +27,19 @@
       height: 100%;
       object-fit: cover;
     }
+    #video {
+      z-index: 5;
+    }
     #canvas {
       z-index: 10;
+      background: transparent; /* Прозорий canvas для видимості відео */
     }
 
-    /* Кнопка мови — верхній правий кут */
     #langBtn {
       position: fixed;
       top: 16px;
       right: 16px;
-      width: 48px; /* Покращення: збільшено розмір для кращого тач */
+      width: 48px;
       height: 48px;
       border-radius: 50%;
       background: rgba(255, 255, 255, 0.2);
@@ -49,13 +53,12 @@
       cursor: pointer;
       z-index: 100;
       font-weight: bold;
-      transition: transform 0.2s; /* Покращення: анімація для зворотного зв'язку */
+      transition: transform 0.2s;
     }
     #langBtn:hover {
       transform: scale(1.1);
     }
 
-    /* Звукова кнопка — вгорі по центру */
     #soundBtn {
       position: fixed;
       top: 20px;
@@ -80,7 +83,6 @@
       transform: scale(1.1);
     }
 
-    /* Кнопки режиму */
     #modeControls {
       position: fixed;
       top: 90px;
@@ -110,15 +112,20 @@
       animation: pulse 1.5s infinite;
     }
 
-    /* Дизайни — внизу */
     #designPicker {
       position: fixed;
       bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
+      left: 0; /* Покращення: повна ширина для скролу */
+      width: 100%;
       display: flex;
       gap: 14px;
       z-index: 100;
+      overflow-x: auto; /* Покращення: горизонтальна прокрутка */
+      white-space: nowrap; /* Покращення: не переносити елементи */
+      padding: 0 20px; /* Покращення: відступи для зручності */
+      box-sizing: border-box;
+      scrollbar-width: thin; /* Покращення: тонкий скролбар */
+      scrollbar-color: #ff4757 transparent; /* Покращення: колір скролбару */
     }
     .design-btn {
       width: 64px;
@@ -129,6 +136,7 @@
       background: white;
       cursor: pointer;
       transition: transform 0.2s;
+      flex-shrink: 0; /* Покращення: не стискати елементи */
     }
     .design-btn:hover, .design-btn.selected {
       transform: scale(1.1);
@@ -175,7 +183,7 @@
       border-radius: 10px;
     }
 
-    #cameraIndicator {
+    #cameraIndicator, #handIndicator {
       position: fixed;
       top: 70px;
       left: 50%;
@@ -185,33 +193,36 @@
       z-index: 100;
       display: none;
     }
+    #handIndicator {
+      top: 100px;
+      color: white;
+    }
   </style>
 </head>
 <body>
   <div id="loading">
-    🎃 Loading Halloween Nail Try-On...
-    <p>Please allow camera access when prompted</p>
+    🎃 Завантаження Гелловінського манікюру...
+    <p>Надайте доступ до камери, коли з'явиться запит</p>
   </div>
 
-  <video id="video" playsinline muted style="display:none"></video>
+  <video id="video" playsinline muted></video>
   <canvas id="canvas"></canvas>
 
-  <div id="langBtn" aria-label="Switch language">EN</div>
-  <div id="soundBtn" aria-label="Toggle sound">🔊</div>
+  <div id="langBtn" aria-label="Переключити мову">UK</div>
+  <div id="soundBtn" aria-label="Увімкнути/вимкнути звук">🔊</div>
 
   <div id="modeControls">
-    <button class="mode-btn active" id="applyAllBtn" aria-label="Apply to all fingers">💅 All Fingers</button>
-    <button class="mode-btn" id="selectFingerBtn" aria-label="Select a finger">👆 Pick Finger</button>
+    <button class="mode-btn active" id="applyAllBtn" aria-label="Застосувати до всіх пальців">💅 Усі пальці</button>
+    <button class="mode-btn" id="selectFingerBtn" aria-label="Обрати палець">👆 Обрати палець</button>
   </div>
 
   <div id="designPicker"></div>
-  <div id="cameraIndicator">📹 Camera Active</div>
+  <div id="cameraIndicator">📹 Задня камера активна</div>
+  <div id="handIndicator">✋ Рука не виявлена</div>
 
   <script type="module">
-    // Імпорт MediaPipe
     import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm";
 
-    // === Переклади ===
     const translations = {
       en: {
         title: "🎃 Halloween Nail Try-On!",
@@ -221,7 +232,11 @@
         pickFinger: "👆 Pick Finger",
         cameraError: "❌ Could not access camera.<br>Try Chrome or Safari.",
         arError: "❌ AR failed to load.<br>Refresh the page.",
-        retry: "Retry"
+        retry: "Retry",
+        cameraIndicator: "📹 Camera Active",
+        rearCamera: "📹 Rear Camera Active",
+        frontCamera: "📹 Front Camera Active",
+        handNotDetected: "✋ Hand not detected"
       },
       uk: {
         title: "🎃 Манікюр на Гелловін!",
@@ -231,17 +246,19 @@
         pickFinger: "👆 Обрати палець",
         cameraError: "❌ Не вдалося отримати доступ до камери.<br>Спробуйте у Chrome або Safari.",
         arError: "❌ Помилка завантаження AR.<br>Спробуйте оновити сторінку.",
-        retry: "Повторити"
+        retry: "Повторити",
+        cameraIndicator: "📹 Камера активна",
+        rearCamera: "📹 Задня камера активна",
+        frontCamera: "📹 Передня камера активна",
+        handNotDetected: "✋ Рука не виявлена"
       }
     };
 
-    // === Мова ===
-    let currentLang = localStorage.getItem('lang') || 'en';
-    if (!['en', 'uk'].includes(currentLang)) currentLang = 'en'; // Покращення: валідація localStorage
+    let currentLang = localStorage.getItem('lang') || 'uk';
+    if (!['en', 'uk'].includes(currentLang)) currentLang = 'uk';
     document.documentElement.lang = currentLang;
     document.title = translations[currentLang].title;
 
-    // === DOM ===
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
@@ -252,12 +269,12 @@
     const selectFingerBtn = document.getElementById("selectFingerBtn");
     const designPicker = document.getElementById("designPicker");
     const cameraIndicator = document.getElementById("cameraIndicator");
+    const handIndicator = document.getElementById("handIndicator");
 
-    // === Оновлення текстів ===
-    function updateTexts() {
+    function updateTexts(isRearCamera = true) {
       document.title = translations[currentLang].title;
       langBtn.textContent = currentLang.toUpperCase();
-      langBtn.setAttribute('aria-label', currentLang === 'en' ? 'Switch to Ukrainian' : 'Switch to English');
+      langBtn.setAttribute('aria-label', currentLang === 'en' ? 'Переключити на українську' : 'Switch to English');
       
       loading.innerHTML = `
         🎃 ${translations[currentLang].loading}
@@ -266,17 +283,17 @@
       
       applyAllBtn.textContent = translations[currentLang].allFingers;
       selectFingerBtn.textContent = translations[currentLang].pickFinger;
+      cameraIndicator.textContent = isRearCamera ? translations[currentLang].rearCamera : translations[currentLang].frontCamera;
+      handIndicator.textContent = translations[currentLang].handNotDetected;
     }
 
-    // === Перемикач мови ===
     langBtn.onclick = () => {
       currentLang = currentLang === 'en' ? 'uk' : 'en';
       localStorage.setItem('lang', currentLang);
       document.documentElement.lang = currentLang;
-      updateTexts();
+      updateTexts(video.srcObject?.getVideoTracks()[0]?.getCapabilities().facingMode === 'environment');
     };
 
-    // === Змінні додатку ===
     const DESIGNS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
     let currentDesign = "1";
     let nailImages = {};
@@ -284,8 +301,10 @@
     let selectedFingerIndex = -1;
     let isMuted = false;
     let bgAudio, clickAudio;
-    let lastLandmarks = null; // Покращення: локальна змінна замість window
-    let needsRedraw = true; // Покращення: флаг для оптимізації рендерингу
+    let lastLandmarks = null;
+    let smoothedLandmarks = null;
+    const SMOOTHING_FACTOR = 0.5;
+    let needsRedraw = true;
 
     function initAudio() {
       bgAudio = new Audio("audio/bg-music.mp3");
@@ -295,7 +314,6 @@
       clickAudio.volume = 0.6;
       if (!isMuted) bgAudio.play().catch(e => console.log("Audio autoplay blocked:", e));
 
-      // Покращення: пауза аудіо при втраті видимості
       document.addEventListener('visibilitychange', () => {
         if (document.hidden && !isMuted) {
           bgAudio.pause();
@@ -306,7 +324,6 @@
     }
 
     async function loadDesigns() {
-      // Покращення: Promise.all для завантаження всіх зображень
       const promises = DESIGNS.map(name => new Promise((resolve, reject) => {
         const img = new Image();
         img.src = `nails/halloween/${name}.png`;
@@ -330,13 +347,13 @@
         const btn = document.createElement("img");
         btn.src = `nails/halloween/${name}.png`;
         btn.className = "design-btn";
-        btn.alt = `Nail design ${name}`; // Покращення: alt для доступності
+        btn.alt = `Дизайн нігтів ${name}`;
         if (name === currentDesign) btn.classList.add("selected");
         btn.onclick = () => {
           currentDesign = name;
           document.querySelectorAll(".design-btn").forEach(b => b.classList.remove("selected"));
           btn.classList.add("selected");
-          needsRedraw = true; // Покращення: оновлення рендерингу
+          needsRedraw = true;
           if (!isMuted) {
             clickAudio.currentTime = 0;
             clickAudio.play().catch(() => {});
@@ -364,7 +381,7 @@
     soundBtn.onclick = () => {
       isMuted = !isMuted;
       soundBtn.textContent = isMuted ? "🔇" : "🎵";
-      soundBtn.setAttribute('aria-label', isMuted ? 'Unmute sound' : 'Mute sound');
+      soundBtn.setAttribute('aria-label', isMuted ? 'Увімкнути звук' : 'Вимкнути звук');
       if (isMuted) {
         bgAudio.pause();
       } else {
@@ -382,7 +399,9 @@
           }
         });
         video.srcObject = stream;
-        cameraIndicator.style.display = 'block'; // Покращення: індикатор камери
+        cameraIndicator.style.display = 'block';
+        const isRearCamera = stream.getVideoTracks()[0].getCapabilities().facingMode === 'environment';
+        updateTexts(isRearCamera);
         return new Promise(resolve => {
           video.onloadedmetadata = () => {
             video.play();
@@ -400,6 +419,7 @@
           });
           video.srcObject = stream;
           cameraIndicator.style.display = 'block';
+          updateTexts(false);
           return new Promise(resolve => {
             video.onloadedmetadata = () => {
               video.play();
@@ -408,11 +428,24 @@
           });
         } catch (fallbackError) {
           loading.innerHTML = `${translations[currentLang].cameraError}<br><button id="errorRetry">${translations[currentLang].retry}</button>`;
-          document.getElementById('errorRetry').onclick = setupCamera; // Покращення: кнопка повтору для камери
+          document.getElementById('errorRetry').onclick = setupCamera;
           console.error("Camera error:", fallbackError);
           throw fallbackError;
         }
       }
+    }
+
+    function smoothLandmarks(newLandmarks) {
+      if (!smoothedLandmarks) {
+        smoothedLandmarks = newLandmarks.map(lm => ({ x: lm.x, y: lm.y, z: lm.z }));
+        return smoothedLandmarks;
+      }
+      for (let i = 0; i < newLandmarks.length; i++) {
+        smoothedLandmarks[i].x = smoothedLandmarks[i].x * (1 - SMOOTHING_FACTOR) + newLandmarks[i].x * SMOOTHING_FACTOR;
+        smoothedLandmarks[i].y = smoothedLandmarks[i].y * (1 - SMOOTHING_FACTOR) + newLandmarks[i].y * SMOOTHING_FACTOR;
+        smoothedLandmarks[i].z = smoothedLandmarks[i].z * (1 - SMOOTHING_FACTOR) + newLandmarks[i].z * SMOOTHING_FACTOR;
+      }
+      return smoothedLandmarks;
     }
 
     function getClosestFinger(touchX, touchY, landmarks) {
@@ -426,7 +459,7 @@
         const y = lm.y * canvas.height;
         const dist = Math.hypot(touchX - x, touchY - y);
         
-        if (dist < minDist && dist < canvas.width * 0.1) { // Покращення: динамічний поріг на основі розміру canvas
+        if (dist < minDist && dist < canvas.width * 0.1) {
           minDist = dist;
           closestIndex = i;
         }
@@ -442,21 +475,28 @@
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top;
       selectedFingerIndex = getClosestFinger(x, y, lastLandmarks);
-      needsRedraw = true; // Покращення: оновлення рендерингу
+      needsRedraw = true;
     });
 
     function calculateNailSize(landmarks, fingerIndex) {
-      // Покращення: динамічний розмір нігтя на основі відстані між лендмарками (наприклад, кінчик і основа пальця)
       const fingerTips = [4, 8, 12, 16, 20];
-      const fingerBases = [1, 5, 9, 13, 17]; // Базові лендмарки для пальців
+      const fingerBases = [1, 5, 9, 13, 17];
       const tip = landmarks[fingerTips[fingerIndex]];
       const base = landmarks[fingerBases[fingerIndex]];
       const dist = Math.hypot((tip.x - base.x) * canvas.width, (tip.y - base.y) * canvas.height);
-      return Math.max(40, dist * 0.8); // Мінімальний розмір 40, масштабування 80% відстані
+      return Math.max(40, dist * 0.8);
+    }
+
+    function calculateNailAngle(landmarks, fingerIndex) {
+      const fingerTips = [4, 8, 12, 16, 20];
+      const fingerBases = [1, 5, 9, 13, 17];
+      const tip = landmarks[fingerTips[fingerIndex]];
+      const base = landmarks[fingerBases[fingerIndex]];
+      return Math.atan2(tip.y - base.y, tip.x - base.x) * 180 / Math.PI;
     }
 
     function renderAR(landmarks) {
-      if (!needsRedraw) return; // Покращення: рендеринг тільки при змінах
+      if (!needsRedraw) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
       ctx.scale(-1, 1);
@@ -465,17 +505,19 @@
       const fingerTips = [4, 8, 12, 16, 20];
       const img = nailImages[currentDesign];
       
-      if (!img || !img.complete) return;
+      if (!img || !img.complete) {
+        loading.innerHTML = `${translations[currentLang].arError}<br><button id="errorRetry">${translations[currentLang].retry}</button>`;
+        document.getElementById('errorRetry').onclick = () => location.reload();
+        return;
+      }
 
       for (let i = 0; i < fingerTips.length; i++) {
-        // Якщо режим вибору пальця і це не обраний палець - пропускаємо
         if (!isApplyAll && i !== selectedFingerIndex) continue;
         
         const lm = landmarks[fingerTips[i]];
         const x = lm.x * canvas.width;
         const y = lm.y * canvas.height;
 
-        // Покращення: візуальний зворотний зв'язок для обраного пальця
         if (!isApplyAll && i === selectedFingerIndex) {
           ctx.beginPath();
           ctx.arc(x, y, 10, 0, 2 * Math.PI);
@@ -484,8 +526,13 @@
           ctx.stroke();
         }
 
-        const size = calculateNailSize(landmarks, i); // Покращення: динамічний розмір
-        ctx.drawImage(img, x - size / 2, y - size / 4, size, size / 2);
+        const size = calculateNailSize(landmarks, i);
+        const angle = calculateNailAngle(landmarks, i);
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate((angle + 90) * Math.PI / 180); // Додати 90° для правильної орієнтації
+        ctx.drawImage(img, -size / 2, -size / 4, size, size / 2);
+        ctx.restore();
       }
 
       ctx.restore();
@@ -495,7 +542,6 @@
     let handLandmarker;
     async function init() {
       try {
-        // Ініціалізація MediaPipe
         const vision = await FilesetResolver.forVisionTasks(
           "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
         );
@@ -511,21 +557,25 @@
 
         await setupCamera();
         
-        // Встановлення розмірів canvas
         function updateCanvasSize() {
           const videoRatio = video.videoWidth / video.videoHeight;
           const windowRatio = window.innerWidth / window.innerHeight;
           if (windowRatio > videoRatio) {
             canvas.width = window.innerHeight * videoRatio;
             canvas.height = window.innerHeight;
+            video.style.width = `${canvas.width}px`;
+            video.style.height = `${canvas.height}px`;
+            video.style.left = `${(window.innerWidth - canvas.width) / 2}px`;
           } else {
             canvas.width = window.innerWidth;
             canvas.height = window.innerWidth / videoRatio;
+            video.style.width = `${canvas.width}px`;
+            video.style.height = `${canvas.height}px`;
+            video.style.top = `${(window.innerHeight - canvas.height) / 2}px`;
           }
-          needsRedraw = true; // Покращення: оновлення після зміни розміру
+          needsRedraw = true;
         }
 
-        // Покращення: debounce для resize
         let resizeTimeout;
         window.addEventListener("resize", () => {
           clearTimeout(resizeTimeout);
@@ -533,30 +583,26 @@
         });
         updateCanvasSize();
 
-        // Завантаження ресурсів
-        await loadDesigns(); // Покращення: await для Promise.all
+        await loadDesigns();
         buildDesignUI();
         initAudio();
         updateTexts();
 
-        // Приховування завантажувача
         loading.style.display = "none";
 
-        // Основний цикл відтворення
         let lastVideoTime = -1;
-        
         const predict = () => {
           if (handLandmarker && video.readyState >= 2) {
             const currentTime = performance.now();
-            
-            // Обмеження частоти обробки для продуктивності (кожні 100 мс)
             if (currentTime - lastVideoTime > 100) {
               const predictions = handLandmarker.detectForVideo(video, currentTime);
               
               if (predictions.landmarks && predictions.landmarks.length > 0) {
-                lastLandmarks = predictions.landmarks[0];
+                lastLandmarks = smoothLandmarks(predictions.landmarks[0]);
+                handIndicator.style.display = 'none';
                 renderAR(lastLandmarks);
               } else {
+                handIndicator.style.display = 'block';
                 if (needsRedraw) {
                   ctx.clearRect(0, 0, canvas.width, canvas.height);
                   needsRedraw = false;
@@ -571,7 +617,6 @@
         
         predict();
 
-        // Покращення: очищення ресурсів
         window.addEventListener("beforeunload", () => {
           if (video.srcObject) {
             video.srcObject.getTracks().forEach(track => track.stop());
@@ -580,6 +625,7 @@
             handLandmarker.close();
           }
           cameraIndicator.style.display = 'none';
+          handIndicator.style.display = 'none';
         });
       } catch (e) {
         console.error("Initialization error:", e);
@@ -588,7 +634,6 @@
       }
     }
 
-    // Запуск додатку
     window.addEventListener("load", init);
   </script>
 </body>
