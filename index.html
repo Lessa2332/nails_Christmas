@@ -233,9 +233,9 @@
       updateTexts();
     };
 
-    // === Решта коду (без змін у логіці) ===
-    const DESIGNS = ["pumpkin", "ghost", "bat", "spider", "candy", "witch"];
-    let currentDesign = "pumpkin";
+    // === Оновлено під вашу структуру ===
+    const DESIGNS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+    let currentDesign = "1";
     let nailImages = {};
     let isApplyAll = true;
     let selectedFingerIndex = -1;
@@ -243,8 +243,8 @@
     let bgAudio, clickAudio;
 
     function initAudio() {
-      bgAudio = new Audio("audio/fon.mp3");
-      clickAudio = new Audio("audio/message.mp3");
+      bgAudio = new Audio("audio/bg-music.mp3");
+      clickAudio = new Audio("audio/click.mp3");
       bgAudio.loop = true;
       bgAudio.volume = 0.3;
       clickAudio.volume = 0.6;
@@ -270,7 +270,9 @@
           currentDesign = name;
           document.querySelectorAll(".design-btn").forEach(b => b.classList.remove("selected"));
           btn.classList.add("selected");
-          if (!isMuted) clickAudio.play().catch(() => {});
+          if (!isMuted) {
+            clickAudio.play().catch(() => {});
+          }
         };
         designPicker.appendChild(btn);
       });
@@ -290,7 +292,7 @@
 
     soundBtn.onclick = () => {
       isMuted = !isMuted;
-      soundBtn.textContent = isMuted ? "🔇" : "🔊";
+      soundBtn.textContent = isMuted ? "🔇" : "🎵";
       if (isMuted) {
         bgAudio.pause();
       } else {
@@ -382,7 +384,7 @@
         loadDesigns();
         buildDesignUI();
         initAudio();
-        updateTexts(); // Оновити тексти після завантаження
+        updateTexts();
 
         loading.style.display = "none";
 
