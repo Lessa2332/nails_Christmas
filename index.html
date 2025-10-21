@@ -414,7 +414,8 @@
       smoothedLandmarks: null,
       handNotDetectedCount: 0,
       animationFrameId: null,
-      palmOrientation: { x: 0, y: 0 }
+      palmOrientation: { x: 0, y: 0 },
+      audioEnabled: false
     };
 
     // DOM елементи
@@ -432,21 +433,12 @@
       handIndicator: document.getElementById("handIndicator")
     };
 
-    // Аудіо
+    // ПОКРАЩЕНА АУДІО СИСТЕМА
     const audio = {
-      bg: new Audio("https://assets.mixkit.co/active_storage/sfx/250/250-preview.mp3"),
-      click: new Audio("https://assets.mixkit.co/active_storage/sfx/247/247-preview.mp3")
+      bg: null,
+      click: null,
+      isLoaded: false
     };
-
-    // Зображення нігтів
-    const DESIGNS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
-    const nailImages = {};
-    const nailTextures = {};
-
-    // Three.js сцена
-    let scene, camera, renderer, videoTexture;
-    const nails = {};
-    let handLandmarker;
 
     class NailARApplication {
       constructor() {
@@ -460,7 +452,7 @@
           await this.initWebGL();
           await this.setupHandTracking();
           await this.loadResources();
-          this.setupAudio();
+          await this.setupAudio(); // Чекаємо на ініціалізацію аудіо
           this.updateUI();
           this.hideLoading();
           this.startRenderLoop();
@@ -480,6 +472,156 @@
         
         window.addEventListener('resize', () => this.handleResize());
         window.addEventListener('beforeunload', () => this.cleanup());
+        
+        // Додаємо обробник для взаємодії з користувачем для розблокування аудіо
+        document.addEventListener('click', () => this.unlockAudio(), { once: true });
+      }
+
+      async setupAudio() {
+        try {
+          // Створюємо аудіо елементи
+          audio.bg = new Audio();
+          audio.click = new Audio();
+          
+          // Налаштовуємо аудіо
+          audio.bg.loop = true;
+          audio.bg.volume = 0.3;
+          audio.click.volume = 0.6;
+          
+          // Додаємо обробники помилок
+          audio.bg.onerror = () => console.warn('Фонова музика не завантажилась');
+          audio.click.onerror = () => console.warn('Звук кліку не завантажився');
+          
+          audio.bg.oncanplaythrough = () => console.log('Фонова музика готова');
+          audio.click.oncanplaythrough = () => console.log('Звук кліку готовий');
+          
+          // Спроба завантажити аудіо файли
+          await this.loadAudioFiles();
+          audio.isLoaded = true;
+          
+        } catch (error) {
+          console.warn('Audio setup failed, continuing without sound:', error);
+          audio.isLoaded = false;
+        }
+      }
+
+      async loadAudioFiles() {
+        const audioBasePath = 'audio/';
+        
+        // Список аудіо файлів для завантаження
+        const audioFiles = [
+          { name: 'bg', file: 'bg-music.mp3', element: audio.bg },
+          { name: 'click', file: 'click.mp3', element: audio.click }
+        ];
+
+        const loadPromises = audioFiles.map(({ element, file }) => {
+          return new Promise((resolve, reject) => {
+            element.src = audioBasePath + file;
+            element.preload = 'auto';
+            
+            element.oncanplay = () => {
+              console.log(`Аудіо завантажено: ${file}`);
+              resolve();
+            };
+            
+            element.onerror = () => {
+              console.warn(`Не вдалося завантажити аудіо: ${file}`);
+              // Створюємо заглушку для відсутнього аудіо
+              this.createAudioFallback(element);
+              resolve();
+            };
+            
+            // Таймаут на випадок, якщо аудіо не завантажиться
+            setTimeout(() => {
+              console.warn(`Таймаут завантаження аудіо: ${file}`);
+              this.createAudioFallback(element);
+              resolve();
+            }, 3000);
+          });
+        });
+
+        await Promise.all(loadPromises);
+      }
+
+      createAudioFallback(audioElement) {
+        // Створюємо простий звуковий буфер як заглушку
+        try {
+          const context = new (window.AudioContext || window.webkitAudioContext)();
+          const oscillator = context.createOscillator();
+          const gainNode = context.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(context.destination);
+          
+          oscillator.type = 'sine';
+          oscillator.frequency.value = 800;
+          gainNode.gain.value = 0.1;
+          
+          // Зберігаємо функцію відтворення заглушки
+          audioElement.fallbackPlay = () => {
+            oscillator.start();
+            setTimeout(() => oscillator.stop(), 100);
+          };
+          
+        } catch (e) {
+          console.warn('Не вдалося створити аудіо заглушку');
+          audioElement.fallbackPlay = () => {}; // Пуста функція
+        }
+      }
+
+      unlockAudio() {
+        // Розблоковуємо аудіо після взаємодії користувача
+        if (audio.bg && !state.isMuted) {
+          this.playBackgroundMusic();
+        }
+      }
+
+      playBackgroundMusic() {
+        if (!audio.isLoaded || state.isMuted) return;
+        
+        audio.bg.play().catch(e => {
+          console.log('Autoplay blocked, user interaction required:', e);
+          // Позначаємо, що аудіо потребує взаємодії
+          state.audioEnabled = false;
+        });
+      }
+
+      playSound(soundElement) {
+        if (!audio.isLoaded || state.isMuted || !soundElement) return;
+        
+        try {
+          // Скидаємо поточний час відтворення
+          soundElement.currentTime = 0;
+          
+          if (soundElement.fallbackPlay) {
+            // Використовуємо заглушку, якщо аудіо не завантажилось
+            soundElement.fallbackPlay();
+          } else {
+            soundElement.play().catch(e => {
+              console.log('Sound play failed:', e);
+            });
+          }
+        } catch (error) {
+          console.warn('Error playing sound:', error);
+        }
+      }
+
+      toggleSound() {
+        state.isMuted = !state.isMuted;
+        
+        if (state.isMuted) {
+          // Вимкнути звук
+          if (audio.bg) {
+            audio.bg.pause();
+            audio.bg.currentTime = 0;
+          }
+        } else {
+          // Увімкнути звук
+          this.playBackgroundMusic();
+        }
+        
+        this.updateSoundButton();
+        this.playSound(audio.click);
       }
 
       async setupCamera() {
@@ -583,10 +725,14 @@
       }
 
       async loadDesigns() {
+        const nailImages = {};
+        const nailTextures = {};
+
         const loadImage = (name) => new Promise((resolve, reject) => {
           const img = new Image();
-          // Використовуємо простий колір як заглушку
-          img.src = `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="%23${this.getRandomColor()}"/><text x="50" y="50" font-family="Arial" font-size="20" text-anchor="middle" fill="white">${name}</text></svg>`;
+          // ВИКОРИСТОВУЄМО ВАШІ РЕАЛЬНІ PNG ФАЙЛИ
+          img.src = `nails/halloween/${name}.png`;
+          img.crossOrigin = "anonymous";
           img.onload = () => {
             nailImages[name] = img;
             
@@ -599,15 +745,16 @@
             resolve();
           };
           img.onerror = () => {
-            // Створюємо просту текстуру як заглушку
+            console.error(`Failed to load nail design: ${name}.png`);
+            // Створюємо просту текстуру як заглушку у разі помилки
             const canvas = document.createElement('canvas');
             canvas.width = 100;
             canvas.height = 100;
             const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#' + this.getRandomColor();
+            ctx.fillStyle = '#FF6B6B';
             ctx.fillRect(0, 0, 100, 100);
             ctx.fillStyle = 'white';
-            ctx.font = '20px Arial';
+            ctx.font = '16px Arial';
             ctx.textAlign = 'center';
             ctx.fillText(name, 50, 55);
             
@@ -619,16 +766,18 @@
         });
 
         try {
+          // Завантажуємо всі дизайни паралельно
           await Promise.all(DESIGNS.map(name => loadImage(name)));
+          console.log('All nail designs loaded successfully');
+          
+          // Зберігаємо в глобальному scope
+          window.nailImages = nailImages;
+          window.nailTextures = nailTextures;
+          
         } catch (error) {
           console.error('Design loading failed:', error);
           throw new Error('DESIGN_LOAD_ERROR');
         }
-      }
-
-      getRandomColor() {
-        const colors = ['FF6B6B', '4ECDC4', '45B7D1', '96CEB4', 'FFEAA7', 'DDA0DD', '98D8C8', 'F7DC6F', 'BB8FCE', '85C1E9'];
-        return colors[Math.floor(Math.random() * colors.length)];
       }
 
       buildDesignUI() {
@@ -636,7 +785,8 @@
         
         DESIGNS.forEach(name => {
           const btn = document.createElement('img');
-          btn.src = nailImages[name].src;
+          // ВИКОРИСТОВУЄМО ВАШІ РЕАЛЬНІ PNG ФАЙЛИ
+          btn.src = `nails/halloween/${name}.png`;
           btn.className = `design-btn ${name === state.currentDesign ? 'selected' : ''}`;
           btn.alt = `Дизайн ${name}`;
           btn.loading = 'lazy';
@@ -647,31 +797,6 @@
           });
           
           elements.designPicker.appendChild(btn);
-        });
-      }
-
-      setupAudio() {
-        audio.bg.loop = true;
-        audio.bg.volume = 0.3;
-        audio.click.volume = 0.6;
-        
-        if (!state.isMuted) {
-          this.playBackgroundMusic();
-        }
-      }
-
-      playBackgroundMusic() {
-        audio.bg.play().catch(e => {
-          console.log('Background music autoplay blocked:', e);
-        });
-      }
-
-      playSound(sound) {
-        if (state.isMuted) return;
-        
-        sound.currentTime = 0;
-        sound.play().catch(e => {
-          console.log('Sound play failed:', e);
         });
       }
 
@@ -780,8 +905,8 @@
         }
 
         // Оновлення текстури
-        if (nailTextures[state.currentDesign]) {
-          nail.material.map = nailTextures[state.currentDesign];
+        if (window.nailTextures && window.nailTextures[state.currentDesign]) {
+          nail.material.map = window.nailTextures[state.currentDesign];
           nail.material.needsUpdate = true;
         }
       }
@@ -939,19 +1064,6 @@
         this.playSound(audio.click);
       }
 
-      toggleSound() {
-        state.isMuted = !state.isMuted;
-        
-        if (state.isMuted) {
-          audio.bg.pause();
-        } else {
-          this.playBackgroundMusic();
-        }
-        
-        this.updateSoundButton();
-        this.playSound(audio.click);
-      }
-
       setApplyAllMode() {
         state.isApplyAll = true;
         state.selectedFingerIndex = -1;
@@ -973,6 +1085,8 @@
         document.querySelectorAll('.design-btn').forEach(btn => {
           btn.classList.toggle('selected', btn.src.includes(`${name}.png`));
         });
+        
+        this.playSound(audio.click);
       }
 
       updateUI() {
@@ -990,6 +1104,7 @@
 
       updateSoundButton() {
         elements.soundBtn.textContent = state.isMuted ? '🔇' : '🔊';
+        elements.soundBtn.title = state.isMuted ? 'Увімкнути звук' : 'Вимкнути звук';
       }
 
       showCameraIndicator() {
@@ -1062,6 +1177,12 @@
         
         if (handLandmarker) {
           handLandmarker.close();
+        }
+        
+        // Зупиняємо аудіо
+        if (audio.bg) {
+          audio.bg.pause();
+          audio.bg.currentTime = 0;
         }
       }
     }
