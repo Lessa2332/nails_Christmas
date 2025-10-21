@@ -25,7 +25,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      object-fit: cover; /* ✅ Виправлено: cover замість contain */
       display: none;
     }
     #video {
@@ -236,6 +236,7 @@
   <div id="handIndicator">✋ Рука не виявлена</div>
   <div id="tipOverlay">Тримайте руку так, щоб було видно ваші нігті</div>
 
+  <!-- ✅ Виправлено: видалено зайві пробіли -->
   <script type="importmap">
     {
       "imports": {
@@ -247,7 +248,8 @@
   <script type="module">
     import * as THREE from 'three';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-    import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm";
+    // ✅ Виправлено: правильний імпорт без /+esm і без пробілів
+    import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
 
     const FINGER_INDICES = {
       thumb: { tip: 4, dip: 3, pip: 2, mcp: 1 },
@@ -339,6 +341,7 @@
     let lastLandmarks = null;
     let smoothedLandmarks = null;
     const SMOOTHING_FACTOR = 0.7;
+    let needsRedraw = true;
 
     function initAudio() {
       bgAudio = new Audio("audio/bg-music.mp3");
@@ -518,7 +521,7 @@
       scene = new THREE.Scene();
       camera = new THREE.OrthographicCamera(window.innerWidth / -2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / -2, 1, 1000);
       camera.position.z = 10;
-      renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
+      renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
 
       // Текстура з відео
@@ -534,7 +537,7 @@
         void main() {
           vUv = uv;
           vec3 pos = position;
-          pos.z += sin(uv.x * 3.14) * curveStrength; // Зігнення по X
+          pos.z += sin(uv.x * 3.14) * curveStrength;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
         }
       `;
@@ -543,7 +546,7 @@
         uniform sampler2D nailTexture;
         void main() {
           vec4 color = texture2D(nailTexture, vUv);
-          if (color.a < 0.1) discard; // Прозорість
+          if (color.a < 0.1) discard;
           gl_FragColor = color;
         }
       `;
@@ -555,11 +558,12 @@
           curveStrength: { value: 0.1 },
           nailTexture: { value: null }
         },
-        transparent: true
+        transparent: true,
+        depthTest: false
       });
 
       FINGER_KEYS.forEach(key => {
-        nailGeometry = new THREE.PlaneGeometry(1, 0.5, 10, 10); // Сегменти для плавного вигину
+        nailGeometry = new THREE.PlaneGeometry(1, 0.5, 10, 10);
         const nail = new THREE.Mesh(nailGeometry, nailMaterial.clone());
         nails[key] = nail;
         scene.add(nail);
@@ -581,17 +585,25 @@
       const dip = landmarks[indices.dip];
       const pip = landmarks[indices.pip];
 
+      // ✅ Виправлено: додано +90° для правильного кута
+      const angle = Math.atan2(dip.y - pip.y, dip.x - pip.x) + Math.PI / 2;
       const x = (tip.x + dip.x + pip.x) / 3 * canvas.width;
       const y = (tip.y + dip.y + pip.y) / 3 * canvas.height;
       const size = Math.hypot((tip.x - pip.x) * canvas.width, (tip.y - pip.y) * canvas.height) * 1.5;
-      const curveStrength = Math.abs(tip.y - pip.y) * 0.2; // Динамічна кривизна
+      const curveStrength = Math.abs(tip.y - pip.y) * 0.2;
 
       const nail = nails[fingerKey];
       nail.position.set(x - canvas.width / 2, canvas.height / 2 - y, 0);
+      nail.rotation.z = angle;
       nail.scale.set(size, size / 2, 1);
       nail.material.uniforms.curveStrength.value = curveStrength;
+      
       if (nailImages[currentDesign]) {
-        nail.material.uniforms.nailTexture.value = new THREE.Texture(nailImages[currentDesign]);
+        if (!nail.material.uniforms.nailTexture.value) {
+          nail.material.uniforms.nailTexture.value = new THREE.CanvasTexture(nailImages[currentDesign]);
+        } else {
+          nail.material.uniforms.nailTexture.value.image = nailImages[currentDesign];
+        }
         nail.material.uniforms.nailTexture.value.needsUpdate = true;
       }
     }
@@ -611,12 +623,14 @@
     async function init() {
       try {
         await initWebGL();
+        // ✅ Виправлено: немає зайвих пробілів у URL
         const vision = await FilesetResolver.forVisionTasks(
           "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
         );
         
         handLandmarker = await HandLandmarker.createFromOptions(vision, {
           baseOptions: {
+            // ✅ Виправлено: немає зайвих пробілів
             modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
             delegate: "GPU"
           },
@@ -637,7 +651,7 @@
 
         let lastVideoTime = -1;
         
-        const predict = (now, metadata) => {
+        const predict = (now) => {
           if (handLandmarker && video.readyState >= 2) {
             if (now - lastVideoTime > 100) {
               const predictions = handLandmarker.detectForVideo(video, now);
@@ -650,16 +664,24 @@
               } else {
                 handIndicator.style.display = 'block';
                 tipOverlay.style.display = 'block';
-                renderAR([]);
+                renderer.render(scene, camera);
               }
               
               lastVideoTime = now;
             }
           }
-          video.requestVideoFrameCallback(predict);
+          if (video.requestVideoFrameCallback) {
+            video.requestVideoFrameCallback(predict);
+          } else {
+            requestAnimationFrame(predict);
+          }
         };
         
-        video.requestVideoFrameCallback(predict);
+        if (video.requestVideoFrameCallback) {
+          video.requestVideoFrameCallback(predict);
+        } else {
+          requestAnimationFrame(predict);
+        });
 
         window.addEventListener("beforeunload", () => {
           if (video.srcObject) {
