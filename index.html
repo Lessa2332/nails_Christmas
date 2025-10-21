@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>🎃 Манікюр на Гелловін!</title>
+  <title>🎃 Манікюр на Гелловін! (WebGL)</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎃</text></svg>">
   <style>
     * {
@@ -26,14 +26,13 @@
       width: 100%;
       height: 100%;
       object-fit: contain;
+      display: none;
     }
     #video {
       z-index: 5;
-      background: black;
     }
     #canvas {
       z-index: 10;
-      background: transparent;
     }
 
     #langBtn {
@@ -237,7 +236,17 @@
   <div id="handIndicator">✋ Рука не виявлена</div>
   <div id="tipOverlay">Тримайте руку так, щоб було видно ваші нігті</div>
 
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+      }
+    }
+  </script>
   <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
     import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm";
 
     const FINGER_INDICES = {
@@ -287,7 +296,6 @@
 
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
     const loading = document.getElementById("loading");
     const langBtn = document.getElementById("langBtn");
     const soundBtn = document.getElementById("soundBtn");
@@ -331,7 +339,6 @@
     let lastLandmarks = null;
     let smoothedLandmarks = null;
     const SMOOTHING_FACTOR = 0.7;
-    let needsRedraw = true;
 
     function initAudio() {
       bgAudio = new Audio("audio/bg-music.mp3");
@@ -504,80 +511,106 @@
       needsRedraw = true;
     });
 
-    function calculateNailSize(landmarks, fingerKey) {
-      const indices = FINGER_INDICES[fingerKey];
-      const tip = landmarks[indices.tip];
-      const pip = landmarks[indices.pip];
-      const dist = Math.hypot((tip.x - pip.x) * canvas.width, (tip.y - pip.y) * canvas.height);
-      return Math.max(30, dist * 1.5);
+    let scene, camera, renderer, videoTexture, nailGeometry, nailMaterial, nails = {};
+    let handLandmarker;
+
+    async function initWebGL() {
+      scene = new THREE.Scene();
+      camera = new THREE.OrthographicCamera(window.innerWidth / -2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / -2, 1, 1000);
+      camera.position.z = 10;
+      renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      // Текстура з відео
+      videoTexture = new THREE.VideoTexture(video);
+      videoTexture.minFilter = THREE.LinearFilter;
+      videoTexture.magFilter = THREE.LinearFilter;
+      scene.background = videoTexture;
+
+      // Шейдер для нігтів
+      const vertexShader = `
+        varying vec2 vUv;
+        uniform float curveStrength;
+        void main() {
+          vUv = uv;
+          vec3 pos = position;
+          pos.z += sin(uv.x * 3.14) * curveStrength; // Зігнення по X
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+        }
+      `;
+      const fragmentShader = `
+        varying vec2 vUv;
+        uniform sampler2D nailTexture;
+        void main() {
+          vec4 color = texture2D(nailTexture, vUv);
+          if (color.a < 0.1) discard; // Прозорість
+          gl_FragColor = color;
+        }
+      `;
+
+      nailMaterial = new THREE.ShaderMaterial({
+        vertexShader,
+        fragmentShader,
+        uniforms: {
+          curveStrength: { value: 0.1 },
+          nailTexture: { value: null }
+        },
+        transparent: true
+      });
+
+      FINGER_KEYS.forEach(key => {
+        nailGeometry = new THREE.PlaneGeometry(1, 0.5, 10, 10); // Сегменти для плавного вигину
+        const nail = new THREE.Mesh(nailGeometry, nailMaterial.clone());
+        nails[key] = nail;
+        scene.add(nail);
+      });
+
+      window.addEventListener('resize', () => {
+        camera.left = window.innerWidth / -2;
+        camera.right = window.innerWidth / 2;
+        camera.top = window.innerHeight / 2;
+        camera.bottom = window.innerHeight / -2;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
     }
 
-    function calculateNailAngle(landmarks, fingerKey) {
-      const indices = FINGER_INDICES[fingerKey];
-      const dip = landmarks[indices.dip];
-      const pip = landmarks[indices.pip];
-      return Math.atan2(dip.y - pip.y, dip.x - pip.x) * 180 / Math.PI;
-    }
-
-    function calculateNailCurve(landmarks, fingerKey) {
+    function updateNailPosition(landmarks, fingerKey) {
       const indices = FINGER_INDICES[fingerKey];
       const tip = landmarks[indices.tip];
       const dip = landmarks[indices.dip];
       const pip = landmarks[indices.pip];
-      const curveHeight = Math.abs((tip.y - pip.y) * canvas.height) * 0.3; // Імітація вигину
-      return curveHeight;
+
+      const x = (tip.x + dip.x + pip.x) / 3 * canvas.width;
+      const y = (tip.y + dip.y + pip.y) / 3 * canvas.height;
+      const size = Math.hypot((tip.x - pip.x) * canvas.width, (tip.y - pip.y) * canvas.height) * 1.5;
+      const curveStrength = Math.abs(tip.y - pip.y) * 0.2; // Динамічна кривизна
+
+      const nail = nails[fingerKey];
+      nail.position.set(x - canvas.width / 2, canvas.height / 2 - y, 0);
+      nail.scale.set(size, size / 2, 1);
+      nail.material.uniforms.curveStrength.value = curveStrength;
+      if (nailImages[currentDesign]) {
+        nail.material.uniforms.nailTexture.value = new THREE.Texture(nailImages[currentDesign]);
+        nail.material.uniforms.nailTexture.value.needsUpdate = true;
+      }
     }
 
     function renderAR(landmarks) {
-      if (!needsRedraw) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.save();
-
-      const img = nailImages[currentDesign];
-      
-      if (!img || !img.complete) return;
-
       FINGER_KEYS.forEach((key, i) => {
-        if (!isApplyAll && i !== selectedFingerIndex) return;
-        
-        const indices = FINGER_INDICES[key];
-        const lm = landmarks[indices.tip];
-        const x = lm.x * canvas.width;
-        const y = lm.y * canvas.height;
-
-        const size = calculateNailSize(landmarks, key);
-        const angle = calculateNailAngle(landmarks, key);
-        const curveHeight = calculateNailCurve(landmarks, key);
-
-        // Імітація кривизни за допомогою трансформації
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(angle * Math.PI / 180);
-        ctx.transform(1, -curveHeight / size * 0.5, 0, 1, 0, 0); // Зсуваємо верхні точки вгору
-        ctx.drawImage(img, -size / 2, -size * 0.6, size, size / 2);
-        ctx.restore();
-
-        // Візуалізація обраного пальця
-        if (!isApplyAll && i === selectedFingerIndex) {
-          ctx.save();
-          ctx.translate(x, y);
-          ctx.rotate(angle * Math.PI / 180);
-          ctx.beginPath();
-          ctx.ellipse(0, -size * 0.3, size / 2 + 2, size / 3 + 2, 0, 0, 2 * Math.PI);
-          ctx.strokeStyle = "yellow";
-          ctx.lineWidth = 3;
-          ctx.stroke();
-          ctx.restore();
+        if (!isApplyAll && i !== selectedFingerIndex) {
+          nails[key].visible = false;
+          return;
         }
+        nails[key].visible = true;
+        updateNailPosition(landmarks, key);
       });
-
-      ctx.restore();
-      needsRedraw = false;
+      renderer.render(scene, camera);
     }
 
-    let handLandmarker;
     async function init() {
       try {
+        await initWebGL();
         const vision = await FilesetResolver.forVisionTasks(
           "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
         );
@@ -593,36 +626,21 @@
 
         await setupCamera();
         
-        function updateCanvasSize() {
-          canvas.width = window.innerWidth;
-          canvas.height = window.innerHeight;
-          video.style.width = '100%';
-          video.style.height = '100%';
-          needsRedraw = true;
-        }
-
-        let resizeTimeout;
-        window.addEventListener("resize", () => {
-          clearTimeout(resizeTimeout);
-          resizeTimeout = setTimeout(updateCanvasSize, 100);
-        });
-        updateCanvasSize();
-
         await loadDesigns();
         buildDesignUI();
         initAudio();
         updateTexts();
 
         loading.style.display = "none";
+        video.style.display = 'block';
+        canvas.style.display = 'block';
 
         let lastVideoTime = -1;
         
-        const predict = (metadata) => {
+        const predict = (now, metadata) => {
           if (handLandmarker && video.readyState >= 2) {
-            const currentTime = performance.now();
-            
-            if (currentTime - lastVideoTime > 100) {
-              const predictions = handLandmarker.detectForVideo(video, currentTime);
+            if (now - lastVideoTime > 100) {
+              const predictions = handLandmarker.detectForVideo(video, now);
               
               if (predictions.landmarks && predictions.landmarks.length > 0) {
                 lastLandmarks = smoothLandmarks(predictions.landmarks[0]);
@@ -632,27 +650,16 @@
               } else {
                 handIndicator.style.display = 'block';
                 tipOverlay.style.display = 'block';
-                if (needsRedraw) {
-                  ctx.clearRect(0, 0, canvas.width, canvas.height);
-                  needsRedraw = false;
-                }
+                renderAR([]);
               }
               
-              lastVideoTime = currentTime;
+              lastVideoTime = now;
             }
           }
-          if (video.requestVideoFrameCallback) {
-            video.requestVideoFrameCallback(predict);
-          } else {
-            requestAnimationFrame(predict);
-          }
+          video.requestVideoFrameCallback(predict);
         };
         
-        if (video.requestVideoFrameCallback) {
-          video.requestVideoFrameCallback(predict);
-        } else {
-          requestAnimationFrame(predict);
-        }
+        video.requestVideoFrameCallback(predict);
 
         window.addEventListener("beforeunload", () => {
           if (video.srcObject) {
