@@ -323,56 +323,34 @@
     import * as THREE from 'three';
     import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm";
 
-    // ПОКРАЩЕНА КОНФІГУРАЦІЯ ДЛЯ КРАЩОЇ ПРИВ'ЯЗКИ
+    // Конфігурація з оптимізованими розмірами
     const CONFIG = {
       SMOOTHING_FACTOR: 0.7,
       HAND_NOT_DETECTED_THRESHOLD: 10,
       
-      // ОПТИМІЗОВАНІ РОЗМІРИ ДЛЯ РІЗНИХ ПАЛЬЦІВ
-      NAIL_SCALE_FACTORS: {
-        thumb: 0.5,    // Менший коефіцієнт для великого пальця
-        index: 0.6,
-        middle: 0.65,
-        ring: 0.55,
-        pinky: 0.45
-      },
+      // ОПТИМІЗОВАНІ РОЗМІРИ ДЛЯ НІГТІВ
+      NAIL_SCALE_FACTOR: 0.4,        // Зменшено з 0.8
+      NAIL_ASPECT_RATIO: 0.6,        // Оптимальне співвідношення ширини до висоти
       
-      // СПІВВІДНОШЕННЯ СТОРІН ДЛЯ КОЖНОГО ПАЛЬЦЯ
-      NAIL_ASPECT_RATIOS: {
-        thumb: 0.6,    // Шире для великого пальця
-        index: 0.5,
-        middle: 0.45,
-        ring: 0.5,
-        pinky: 0.55
-      },
-      
-      // ЗМІЩЕННЯ ДЛЯ КОЖНОГО ПАЛЬЦЯ (x, y)
-      NAIL_OFFSETS: {
-        thumb: { x: -0.01, y: -0.02 },
-        index: { x: 0, y: -0.02 },
-        middle: { x: 0, y: -0.025 },
-        ring: { x: 0, y: -0.02 },
-        pinky: { x: 0.005, y: -0.015 }
-      },
-      
-      // МАКСИМАЛЬНІ РОЗМІРИ
+      // Максимальні розміри для різних пальців
       MAX_SIZES: {
-        thumb: 70,
-        index: 95,
-        middle: 105,
-        ring: 90,
-        pinky: 65
+        thumb: 80,    // Найменший палець
+        index: 100,   // Середній розмір
+        middle: 110,  // Найдовший палець
+        ring: 95,     // Трохи менше за середній
+        pinky: 70     // Найменший
       },
       
-      MIN_SIZE: 35
+      // Мінімальні розміри
+      MIN_SIZE: 40
     };
 
     const FINGER_INDICES = {
-      thumb: { tip: 4, mcp: 2, pip: 3, ip: 3 },
-      index: { tip: 8, mcp: 5, pip: 6, dip: 7 },
-      middle: { tip: 12, mcp: 9, pip: 10, dip: 11 },
-      ring: { tip: 16, mcp: 13, pip: 14, dip: 15 },
-      pinky: { tip: 20, mcp: 17, pip: 18, dip: 19 }
+      thumb: { tip: 4, mcp: 2, pip: 3 },
+      index: { tip: 8, mcp: 5, pip: 6 },
+      middle: { tip: 12, mcp: 9, pip: 10 },
+      ring: { tip: 16, mcp: 13, pip: 14 },
+      pinky: { tip: 20, mcp: 17, pip: 18 }
     };
     const FINGER_KEYS = Object.keys(FINGER_INDICES);
 
@@ -413,9 +391,7 @@
       lastLandmarks: null,
       smoothedLandmarks: null,
       handNotDetectedCount: 0,
-      animationFrameId: null,
-      palmOrientation: { x: 0, y: 0 },
-      audioEnabled: false
+      animationFrameId: null
     };
 
     // DOM елементи
@@ -433,12 +409,21 @@
       handIndicator: document.getElementById("handIndicator")
     };
 
-    // ПОКРАЩЕНА АУДІО СИСТЕМА
+    // Аудіо
     const audio = {
-      bg: null,
-      click: null,
-      isLoaded: false
+      bg: new Audio("audio/bg-music.mp3"),
+      click: new Audio("audio/click.mp3")
     };
+
+    // Зображення нігтів
+    const DESIGNS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+    const nailImages = {};
+    const nailTextures = {};
+
+    // Three.js сцена
+    let scene, camera, renderer, videoTexture;
+    const nails = {};
+    let handLandmarker;
 
     class NailARApplication {
       constructor() {
@@ -452,7 +437,7 @@
           await this.initWebGL();
           await this.setupHandTracking();
           await this.loadResources();
-          await this.setupAudio(); // Чекаємо на ініціалізацію аудіо
+          this.setupAudio();
           this.updateUI();
           this.hideLoading();
           this.startRenderLoop();
@@ -472,156 +457,6 @@
         
         window.addEventListener('resize', () => this.handleResize());
         window.addEventListener('beforeunload', () => this.cleanup());
-        
-        // Додаємо обробник для взаємодії з користувачем для розблокування аудіо
-        document.addEventListener('click', () => this.unlockAudio(), { once: true });
-      }
-
-      async setupAudio() {
-        try {
-          // Створюємо аудіо елементи
-          audio.bg = new Audio();
-          audio.click = new Audio();
-          
-          // Налаштовуємо аудіо
-          audio.bg.loop = true;
-          audio.bg.volume = 0.3;
-          audio.click.volume = 0.6;
-          
-          // Додаємо обробники помилок
-          audio.bg.onerror = () => console.warn('Фонова музика не завантажилась');
-          audio.click.onerror = () => console.warn('Звук кліку не завантажився');
-          
-          audio.bg.oncanplaythrough = () => console.log('Фонова музика готова');
-          audio.click.oncanplaythrough = () => console.log('Звук кліку готовий');
-          
-          // Спроба завантажити аудіо файли
-          await this.loadAudioFiles();
-          audio.isLoaded = true;
-          
-        } catch (error) {
-          console.warn('Audio setup failed, continuing without sound:', error);
-          audio.isLoaded = false;
-        }
-      }
-
-      async loadAudioFiles() {
-        const audioBasePath = 'audio/';
-        
-        // Список аудіо файлів для завантаження
-        const audioFiles = [
-          { name: 'bg', file: 'bg-music.mp3', element: audio.bg },
-          { name: 'click', file: 'click.mp3', element: audio.click }
-        ];
-
-        const loadPromises = audioFiles.map(({ element, file }) => {
-          return new Promise((resolve, reject) => {
-            element.src = audioBasePath + file;
-            element.preload = 'auto';
-            
-            element.oncanplay = () => {
-              console.log(`Аудіо завантажено: ${file}`);
-              resolve();
-            };
-            
-            element.onerror = () => {
-              console.warn(`Не вдалося завантажити аудіо: ${file}`);
-              // Створюємо заглушку для відсутнього аудіо
-              this.createAudioFallback(element);
-              resolve();
-            };
-            
-            // Таймаут на випадок, якщо аудіо не завантажиться
-            setTimeout(() => {
-              console.warn(`Таймаут завантаження аудіо: ${file}`);
-              this.createAudioFallback(element);
-              resolve();
-            }, 3000);
-          });
-        });
-
-        await Promise.all(loadPromises);
-      }
-
-      createAudioFallback(audioElement) {
-        // Створюємо простий звуковий буфер як заглушку
-        try {
-          const context = new (window.AudioContext || window.webkitAudioContext)();
-          const oscillator = context.createOscillator();
-          const gainNode = context.createGain();
-          
-          oscillator.connect(gainNode);
-          gainNode.connect(context.destination);
-          
-          oscillator.type = 'sine';
-          oscillator.frequency.value = 800;
-          gainNode.gain.value = 0.1;
-          
-          // Зберігаємо функцію відтворення заглушки
-          audioElement.fallbackPlay = () => {
-            oscillator.start();
-            setTimeout(() => oscillator.stop(), 100);
-          };
-          
-        } catch (e) {
-          console.warn('Не вдалося створити аудіо заглушку');
-          audioElement.fallbackPlay = () => {}; // Пуста функція
-        }
-      }
-
-      unlockAudio() {
-        // Розблоковуємо аудіо після взаємодії користувача
-        if (audio.bg && !state.isMuted) {
-          this.playBackgroundMusic();
-        }
-      }
-
-      playBackgroundMusic() {
-        if (!audio.isLoaded || state.isMuted) return;
-        
-        audio.bg.play().catch(e => {
-          console.log('Autoplay blocked, user interaction required:', e);
-          // Позначаємо, що аудіо потребує взаємодії
-          state.audioEnabled = false;
-        });
-      }
-
-      playSound(soundElement) {
-        if (!audio.isLoaded || state.isMuted || !soundElement) return;
-        
-        try {
-          // Скидаємо поточний час відтворення
-          soundElement.currentTime = 0;
-          
-          if (soundElement.fallbackPlay) {
-            // Використовуємо заглушку, якщо аудіо не завантажилось
-            soundElement.fallbackPlay();
-          } else {
-            soundElement.play().catch(e => {
-              console.log('Sound play failed:', e);
-            });
-          }
-        } catch (error) {
-          console.warn('Error playing sound:', error);
-        }
-      }
-
-      toggleSound() {
-        state.isMuted = !state.isMuted;
-        
-        if (state.isMuted) {
-          // Вимкнути звук
-          if (audio.bg) {
-            audio.bg.pause();
-            audio.bg.currentTime = 0;
-          }
-        } else {
-          // Увімкнути звук
-          this.playBackgroundMusic();
-        }
-        
-        this.updateSoundButton();
-        this.playSound(audio.click);
       }
 
       async setupCamera() {
@@ -683,22 +518,19 @@
       }
 
       createNails() {
-        FINGER_KEYS.forEach(key => {
-          // РІЗНА ГЕОМЕТРІЯ ДЛЯ РІЗНИХ ПАЛЬЦІВ
-          const aspectRatio = CONFIG.NAIL_ASPECT_RATIOS[key];
-          const nailGeometry = new THREE.PlaneGeometry(1, aspectRatio);
-          
-          const nailMaterial = new THREE.MeshBasicMaterial({
-            transparent: true,
-            side: THREE.DoubleSide,
-            depthTest: false,
-            depthWrite: false
-          });
+        const nailGeometry = new THREE.PlaneGeometry(1, 1);
+        
+        const nailMaterial = new THREE.MeshBasicMaterial({
+          transparent: true,
+          side: THREE.DoubleSide,
+          depthTest: false,
+          depthWrite: false
+        });
 
-          const nail = new THREE.Mesh(nailGeometry, nailMaterial);
+        FINGER_KEYS.forEach(key => {
+          const nail = new THREE.Mesh(nailGeometry, nailMaterial.clone());
           nail.visible = false;
           nail.frustumCulled = false;
-          nail.userData.fingerType = key; // Зберігаємо тип пальця
           nails[key] = nail;
           scene.add(nail);
         });
@@ -725,17 +557,13 @@
       }
 
       async loadDesigns() {
-        const nailImages = {};
-        const nailTextures = {};
-
         const loadImage = (name) => new Promise((resolve, reject) => {
           const img = new Image();
-          // ВИКОРИСТОВУЄМО ВАШІ РЕАЛЬНІ PNG ФАЙЛИ
           img.src = `nails/halloween/${name}.png`;
-          img.crossOrigin = "anonymous";
           img.onload = () => {
             nailImages[name] = img;
             
+            // Створюємо текстуру з фільтрацією для кращої якості
             const texture = new THREE.CanvasTexture(img);
             texture.minFilter = THREE.LinearFilter;
             texture.magFilter = THREE.LinearFilter;
@@ -744,36 +572,13 @@
             
             resolve();
           };
-          img.onerror = () => {
-            console.error(`Failed to load nail design: ${name}.png`);
-            // Створюємо просту текстуру як заглушку у разі помилки
-            const canvas = document.createElement('canvas');
-            canvas.width = 100;
-            canvas.height = 100;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#FF6B6B';
-            ctx.fillRect(0, 0, 100, 100);
-            ctx.fillStyle = 'white';
-            ctx.font = '16px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(name, 50, 55);
-            
-            nailImages[name] = canvas;
-            const texture = new THREE.CanvasTexture(canvas);
-            nailTextures[name] = texture;
-            resolve();
-          };
+          img.onerror = () => reject(new Error(`Failed to load: ${name}.png`));
         });
 
         try {
-          // Завантажуємо всі дизайни паралельно
-          await Promise.all(DESIGNS.map(name => loadImage(name)));
-          console.log('All nail designs loaded successfully');
-          
-          // Зберігаємо в глобальному scope
-          window.nailImages = nailImages;
-          window.nailTextures = nailTextures;
-          
+          await loadImage(DESIGNS[0]);
+          const remainingPromises = DESIGNS.slice(1).map(name => loadImage(name));
+          await Promise.all(remainingPromises);
         } catch (error) {
           console.error('Design loading failed:', error);
           throw new Error('DESIGN_LOAD_ERROR');
@@ -785,7 +590,6 @@
         
         DESIGNS.forEach(name => {
           const btn = document.createElement('img');
-          // ВИКОРИСТОВУЄМО ВАШІ РЕАЛЬНІ PNG ФАЙЛИ
           btn.src = `nails/halloween/${name}.png`;
           btn.className = `design-btn ${name === state.currentDesign ? 'selected' : ''}`;
           btn.alt = `Дизайн ${name}`;
@@ -797,6 +601,31 @@
           });
           
           elements.designPicker.appendChild(btn);
+        });
+      }
+
+      setupAudio() {
+        audio.bg.loop = true;
+        audio.bg.volume = 0.3;
+        audio.click.volume = 0.6;
+        
+        if (!state.isMuted) {
+          this.playBackgroundMusic();
+        }
+      }
+
+      playBackgroundMusic() {
+        audio.bg.play().catch(e => {
+          console.log('Background music autoplay blocked:', e);
+        });
+      }
+
+      playSound(sound) {
+        if (state.isMuted) return;
+        
+        sound.currentTime = 0;
+        sound.play().catch(e => {
+          console.log('Sound play failed:', e);
         });
       }
 
@@ -822,9 +651,6 @@
             const landmarks = predictions.landmarks[0];
             state.lastLandmarks = this.smoothLandmarks(landmarks);
             
-            // ОНОВЛЮЄМО ОРІЄНТАЦІЮ ДОЛОНІ
-            this.updatePalmOrientation(landmarks);
-            
           } else {
             state.handNotDetectedCount++;
             if (state.handNotDetectedCount > CONFIG.HAND_NOT_DETECTED_THRESHOLD) {
@@ -835,18 +661,6 @@
         } catch (error) {
           console.error('Hand detection error:', error);
         }
-      }
-
-      updatePalmOrientation(landmarks) {
-        // Визначаємо орієнтацію долоні на основі зап'ястя та основи пальців
-        const wrist = landmarks[0];
-        const middleMCP = landmarks[9];
-        const indexMCP = landmarks[5];
-        
-        state.palmOrientation = {
-          x: (middleMCP.x - wrist.x) * window.innerWidth,
-          y: (middleMCP.y - wrist.y) * window.innerHeight
-        };
       }
 
       smoothLandmarks(newLandmarks) {
@@ -895,123 +709,53 @@
 
       updateNailPosition(fingerKey) {
         const landmarks = state.lastLandmarks;
-        const nail = nails[fingerKey];
-
-        // ВИКОРИСТОВУЄМО РІЗНІ АЛГОРИТМИ ДЛЯ ВЕЛИКОГО ТА ІНШИХ ПАЛЬЦІВ
-        if (fingerKey === 'thumb') {
-          this.updateThumbNailPosition(fingerKey, landmarks);
-        } else {
-          this.updateFingerNailPosition(fingerKey, landmarks);
-        }
-
-        // Оновлення текстури
-        if (window.nailTextures && window.nailTextures[state.currentDesign]) {
-          nail.material.map = window.nailTextures[state.currentDesign];
-          nail.material.needsUpdate = true;
-        }
-      }
-
-      updateThumbNailPosition(fingerKey, landmarks) {
-        const nail = nails[fingerKey];
-        const { tip, mcp, ip } = FINGER_INDICES[fingerKey];
-        const wrist = landmarks[0];
-
-        const tipLandmark = landmarks[tip];
-        const mcpLandmark = landmarks[mcp];
-        const ipLandmark = landmarks[ip];
-
-        // СПЕЦІАЛЬНИЙ РОЗРАХУНОК ДЛЯ ВЕЛИКОГО ПАЛЬЦЯ
-        const thumbDirection = this.calculateThumbDirection(tipLandmark, mcpLandmark, wrist);
-        
-        // Кореговане зміщення для великого пальця
-        const thumbOffset = this.calculateThumbOffset(thumbDirection);
-        
-        const screenX = (tipLandmark.x + thumbOffset.x) * window.innerWidth;
-        const screenY = (1 - (tipLandmark.y + thumbOffset.y)) * window.innerHeight;
-
-        // Розмір на основі довжини великого пальця
-        const thumbLength = Math.hypot(
-          (tipLandmark.x - mcpLandmark.x) * window.innerWidth,
-          (tipLandmark.y - mcpLandmark.y) * window.innerHeight
-        );
-
-        let nailSize = thumbLength * CONFIG.NAIL_SCALE_FACTORS.thumb;
-        nailSize = Math.min(nailSize, CONFIG.MAX_SIZES.thumb);
-        nailSize = Math.max(nailSize, CONFIG.MIN_SIZE);
-
-        // Кут для великого пальця
-        const angle = Math.atan2(
-          tipLandmark.y - ipLandmark.y,
-          tipLandmark.x - ipLandmark.x
-        );
-
-        // Застосовуємо позицію та обертання
-        nail.position.set(
-          screenX - window.innerWidth / 2,
-          screenY - window.innerHeight / 2,
-          0
-        );
-
-        nail.scale.set(nailSize, nailSize * CONFIG.NAIL_ASPECT_RATIOS.thumb, 1);
-        nail.rotation.z = angle;
-      }
-
-      updateFingerNailPosition(fingerKey, landmarks) {
-        const nail = nails[fingerKey];
         const { tip, pip } = FINGER_INDICES[fingerKey];
+        const nail = nails[fingerKey];
 
         const tipLandmark = landmarks[tip];
         const pipLandmark = landmarks[pip];
 
-        // Звичайний розрахунок для інших пальців
-        const offset = CONFIG.NAIL_OFFSETS[fingerKey];
-        const screenX = (tipLandmark.x + offset.x) * window.innerWidth;
-        const screenY = (1 - (tipLandmark.y + offset.y)) * window.innerHeight;
+        // Розрахунок позиції - трохи вище кінчика пальця
+        const offsetY = -0.02; // Зміщення вгору від кінчика
+        const screenX = tipLandmark.x * window.innerWidth;
+        const screenY = (1 - (tipLandmark.y + offsetY)) * window.innerHeight;
 
+        // Розрахунок розміру на основі відстані між кінчиком і суглобом
         const fingerLength = Math.hypot(
           (tipLandmark.x - pipLandmark.x) * window.innerWidth,
           (tipLandmark.y - pipLandmark.y) * window.innerHeight
         );
 
-        let nailSize = fingerLength * CONFIG.NAIL_SCALE_FACTORS[fingerKey];
-        nailSize = Math.min(nailSize, CONFIG.MAX_SIZES[fingerKey]);
+        // ОПТИМІЗОВАНИЙ РОЗМІР - зменшено коефіцієнт
+        let nailSize = fingerLength * CONFIG.NAIL_SCALE_FACTOR;
+        
+        // Обмеження розміру для кожного пальця
+        const maxSize = CONFIG.MAX_SIZES[fingerKey];
+        nailSize = Math.min(nailSize, maxSize);
         nailSize = Math.max(nailSize, CONFIG.MIN_SIZE);
 
+        // Розрахунок кута нахилу пальця
         const angle = Math.atan2(
           tipLandmark.y - pipLandmark.y,
           tipLandmark.x - pipLandmark.x
         );
 
+        // Оновлення позиції, розміру та кута
         nail.position.set(
           screenX - window.innerWidth / 2,
           screenY - window.innerHeight / 2,
           0
         );
 
-        nail.scale.set(nailSize, nailSize * CONFIG.NAIL_ASPECT_RATIOS[fingerKey], 1);
+        // Застосовуємо співвідношення сторін для більш природного вигляду
+        nail.scale.set(nailSize, nailSize * CONFIG.NAIL_ASPECT_RATIO, 1);
         nail.rotation.z = angle;
-      }
 
-      calculateThumbDirection(tip, mcp, wrist) {
-        // Визначаємо напрямок великого пальця відносно зап'ястя
-        return {
-          x: tip.x - wrist.x,
-          y: tip.y - wrist.y
-        };
-      }
-
-      calculateThumbOffset(thumbDirection) {
-        // Динамічне зміщення на основі напрямку великого пальця
-        const baseOffset = CONFIG.NAIL_OFFSETS.thumb;
-        const magnitude = Math.hypot(thumbDirection.x, thumbDirection.y);
-        
-        // Корекція на основі довжини вектора
-        const correctionFactor = Math.min(magnitude * 5, 0.02);
-        
-        return {
-          x: baseOffset.x - correctionFactor,
-          y: baseOffset.y - correctionFactor * 0.5
-        };
+        // Оновлення текстури
+        if (nailTextures[state.currentDesign]) {
+          nail.material.map = nailTextures[state.currentDesign];
+          nail.material.needsUpdate = true;
+        }
       }
 
       hideAllNails() {
@@ -1064,6 +808,19 @@
         this.playSound(audio.click);
       }
 
+      toggleSound() {
+        state.isMuted = !state.isMuted;
+        
+        if (state.isMuted) {
+          audio.bg.pause();
+        } else {
+          this.playBackgroundMusic();
+        }
+        
+        this.updateSoundButton();
+        this.playSound(audio.click);
+      }
+
       setApplyAllMode() {
         state.isApplyAll = true;
         state.selectedFingerIndex = -1;
@@ -1085,8 +842,6 @@
         document.querySelectorAll('.design-btn').forEach(btn => {
           btn.classList.toggle('selected', btn.src.includes(`${name}.png`));
         });
-        
-        this.playSound(audio.click);
       }
 
       updateUI() {
@@ -1104,7 +859,6 @@
 
       updateSoundButton() {
         elements.soundBtn.textContent = state.isMuted ? '🔇' : '🔊';
-        elements.soundBtn.title = state.isMuted ? 'Увімкнути звук' : 'Вимкнути звук';
       }
 
       showCameraIndicator() {
@@ -1177,12 +931,6 @@
         
         if (handLandmarker) {
           handLandmarker.close();
-        }
-        
-        // Зупиняємо аудіо
-        if (audio.bg) {
-          audio.bg.pause();
-          audio.bg.currentTime = 0;
         }
       }
     }
