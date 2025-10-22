@@ -323,48 +323,49 @@
     import * as THREE from 'three';
     import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm";
 
-    // OPTIMIZED CONFIGURATION
-// ДУЖЕ ШИРОКІ НІГТІ - МАКСИМАЛЬНЕ РОЗШИРЕННЯ
-// ОПТИМАЛЬНО ШИРОКІ НІГТІ - ЗОЛОТА СЕРЕДИНА
-// ТРОХИ ШИРШІ ЗВИЧАЙНИХ - АЛЕ НЕ ЗАБАГАТО
-const CONFIG = {
-  SMOOTHING_FACTOR: 0.7,
-  HAND_NOT_DETECTED_THRESHOLD: 10,
-  
-  NAIL_SCALE_FACTORS: {
-    thumb: 0.65,
-    index: 0.7,
-    middle: 0.75,
-    ring: 0.65,
-    pinky: 0.55
-  },
-  
-  NAIL_ASPECT_RATIOS: {
-    thumb: 0.7,      // помірно широкі
-    index: 0.6,      // помірно широкі
-    middle: 0.55,    // помірно широкі
-    ring: 0.6,       // помірно широкі
-    pinky: 0.65      // помірно широкі
-  },
-  
-  NAIL_OFFSETS: {
-    thumb: { x: -0.01, y: -0.02 },
-    index: { x: 0, y: -0.02 },
-    middle: { x: 0, y: -0.025 },
-    ring: { x: 0, y: -0.02 },
-    pinky: { x: 0.005, y: -0.015 }
-  },
-  
-  MAX_SIZES: {
-    thumb: 75,
-    index: 95,
-    middle: 105,
-    ring: 90,
-    pinky: 65
-  },
-  
-  MIN_SIZE: 35
-};
+    // ДИНАМІЧНА КОНФІГУРАЦІЯ З МАСШТАБУВАННЯМ
+    const CONFIG = {
+      SMOOTHING_FACTOR: 0.7,
+      HAND_NOT_DETECTED_THRESHOLD: 10,
+      
+      // БАЗОВІ КОЕФІЦІЄНТИ МАСШТАБУВАННЯ
+      NAIL_SCALE_FACTORS: {
+        thumb: 0.65,
+        index: 0.7,
+        middle: 0.75,
+        ring: 0.65,
+        pinky: 0.55
+      },
+      
+      // СПІВВІДНОШЕННЯ СТОРІН
+      NAIL_ASPECT_RATIOS: {
+        thumb: 0.7,
+        index: 0.6,
+        middle: 0.55,
+        ring: 0.6,
+        pinky: 0.65
+      },
+      
+      // ЗСУВИ ДЛЯ КРАЩОГО ПОЗИЦІОНУВАННЯ
+      NAIL_OFFSETS: {
+        thumb: { x: -0.01, y: -0.02 },
+        index: { x: 0, y: -0.02 },
+        middle: { x: 0, y: -0.025 },
+        ring: { x: 0, y: -0.02 },
+        pinky: { x: 0.005, y: -0.015 }
+      },
+      
+      // ДИНАМІЧНІ РОЗМІРИ ЗАЛЕЖНО ВІД ВІДСТАНІ
+      MIN_SIZE: 25,           // Мінімальний розмір (рука далеко)
+      MAX_SIZE: 120,          // Максимальний розмір (рука близько)
+      
+      // НАЛАШТУВАННЯ ДИНАМІЧНОГО МАСШТАБУВАННЯ
+      WRIST_DISTANCE_REF: 0.08,   // Референсна відстань зап'ястя
+      SCALE_SENSITIVITY: 2.5,     // Чутливість масштабування
+      MAX_SCALE_FACTOR: 3.0,      // Максимальний коефіцієнт масштабування
+      MIN_SCALE_FACTOR: 0.3       // Мінімальний коефіцієнт масштабування
+    };
+
     const FINGER_INDICES = {
       thumb: { tip: 4, mcp: 2, pip: 3, ip: 3 },
       index: { tip: 8, mcp: 5, pip: 6, dip: 7 },
@@ -401,7 +402,7 @@ const CONFIG = {
       }
     };
 
-    // Global state
+    // Глобальний стан з динамічним масштабуванням
     const state = {
       currentLang: 'en',
       currentDesign: "1",
@@ -412,7 +413,9 @@ const CONFIG = {
       smoothedLandmarks: null,
       handNotDetectedCount: 0,
       animationFrameId: null,
-      palmOrientation: { x: 0, y: 0 }
+      palmOrientation: { x: 0, y: 0 },
+      currentHandSize: 1.0, // Коефіцієнт масштабування за відстанню
+      wristDistance: 0 // Відстань між зап'ястями для масштабування
     };
 
     // DOM elements
@@ -578,7 +581,6 @@ const CONFIG = {
       async loadDesigns() {
         const loadImage = (name) => new Promise((resolve) => {
           const img = new Image();
-          // USING YOUR ACTUAL PNG FILES FROM REPO
           img.src = `nails/halloween/${name}.png`;
           img.onload = () => {
             const texture = new THREE.CanvasTexture(img);
@@ -590,7 +592,6 @@ const CONFIG = {
           };
           img.onerror = () => {
             console.warn(`Failed to load: ${name}.png, using fallback`);
-            // Create fallback texture
             const canvas = document.createElement('canvas');
             canvas.width = 100;
             canvas.height = 100;
@@ -622,7 +623,6 @@ const CONFIG = {
         
         DESIGNS.forEach(name => {
           const btn = document.createElement('img');
-          // USING YOUR ACTUAL PNG FILES
           btn.src = `nails/halloween/${name}.png`;
           btn.className = `design-btn ${name === state.currentDesign ? 'selected' : ''}`;
           btn.alt = `Design ${name}`;
@@ -638,12 +638,10 @@ const CONFIG = {
       }
 
       setupAudio() {
-        // Setup audio with fallbacks
         audio.bg.loop = true;
         audio.bg.volume = 0.3;
         audio.click.volume = 0.6;
         
-        // Try to load audio files from your repo
         audio.bg.src = 'audio/bg-music.mp3';
         audio.click.src = 'audio/click.mp3';
         
@@ -706,6 +704,9 @@ const CONFIG = {
             state.lastLandmarks = this.smoothLandmarks(landmarks);
             this.updatePalmOrientation(landmarks);
             
+            // ОБЧИСЛЕННЯ РОЗМІРУ РУКИ ДЛЯ ДИНАМІЧНОГО МАСШТАБУВАННЯ
+            this.calculateHandSize(landmarks);
+            
           } else {
             state.handNotDetectedCount++;
             if (state.handNotDetectedCount > CONFIG.HAND_NOT_DETECTED_THRESHOLD) {
@@ -716,6 +717,30 @@ const CONFIG = {
         } catch (error) {
           console.error('Hand detection error:', error);
         }
+      }
+
+      // НОВА ФУНКЦІЯ: обчислення розміру руки для динамічного масштабування
+      calculateHandSize(landmarks) {
+        // Вимірюємо відстань між зап'ястями (landmarks 0 та 1)
+        const wristStart = landmarks[0];
+        const wristEnd = landmarks[1];
+        
+        const wristDistance = Math.hypot(
+          wristStart.x - wristEnd.x,
+          wristStart.y - wristEnd.y
+        );
+        
+        state.wristDistance = wristDistance;
+        
+        // Обчислюємо коефіцієнт масштабування на основі відстані зап'ястя
+        // Чим ближче рука до камери - тим більше wristDistance
+        let scaleFactor = wristDistance / CONFIG.WRIST_DISTANCE_REF * CONFIG.SCALE_SENSITIVITY;
+        
+        // Обмежуємо коефіцієнт масштабування
+        scaleFactor = Math.min(scaleFactor, CONFIG.MAX_SCALE_FACTOR);
+        scaleFactor = Math.max(scaleFactor, CONFIG.MIN_SCALE_FACTOR);
+        
+        state.currentHandSize = scaleFactor;
       }
 
       updatePalmOrientation(landmarks) {
@@ -808,8 +833,14 @@ const CONFIG = {
           (tipLandmark.y - mcpLandmark.y) * window.innerHeight
         );
 
+        // ДИНАМІЧНИЙ РОЗМІР З МАСШТАБУВАННЯМ
         let nailSize = thumbLength * CONFIG.NAIL_SCALE_FACTORS.thumb;
-        nailSize = Math.min(nailSize, CONFIG.MAX_SIZES.thumb);
+        
+        // ЗАСТОСОВУЄМО ДИНАМІЧНЕ МАСШТАБУВАННЯ
+        nailSize *= state.currentHandSize;
+        
+        // Обмеження розміру
+        nailSize = Math.min(nailSize, CONFIG.MAX_SIZE);
         nailSize = Math.max(nailSize, CONFIG.MIN_SIZE);
 
         const angle = Math.atan2(
@@ -843,8 +874,14 @@ const CONFIG = {
           (tipLandmark.y - pipLandmark.y) * window.innerHeight
         );
 
+        // ДИНАМІЧНИЙ РОЗМІР З МАСШТАБУВАННЯМ
         let nailSize = fingerLength * CONFIG.NAIL_SCALE_FACTORS[fingerKey];
-        nailSize = Math.min(nailSize, CONFIG.MAX_SIZES[fingerKey]);
+        
+        // ЗАСТОСОВУЄМО ДИНАМІЧНЕ МАСШТАБУВАННЯ
+        nailSize *= state.currentHandSize;
+        
+        // Обмеження розміру
+        nailSize = Math.min(nailSize, CONFIG.MAX_SIZE);
         nailSize = Math.max(nailSize, CONFIG.MIN_SIZE);
 
         const angle = Math.atan2(
@@ -1055,6 +1092,3 @@ const CONFIG = {
   </script>
 </body>
 </html>
-
-
-
