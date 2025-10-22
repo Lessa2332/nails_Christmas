@@ -324,45 +324,49 @@
     import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm";
 
     // OPTIMIZED CONFIGURATION
-    const CONFIG = {
-      SMOOTHING_FACTOR: 0.7,
-      HAND_NOT_DETECTED_THRESHOLD: 10,
-      
-      // OPTIMIZED SIZES FOR DIFFERENT FINGERS
-      NAIL_SCALE_FACTORS: {
-        thumb: 0.5,
-        index: 0.6,
-        middle: 0.65,
-        ring: 0.55,
-        pinky: 0.45
-      },
-      
-      NAIL_ASPECT_RATIOS: {
-        thumb: 0.6,
-        index: 0.5,
-        middle: 0.45,
-        ring: 0.5,
-        pinky: 0.55
-      },
-      
-      NAIL_OFFSETS: {
-        thumb: { x: -0.01, y: -0.02 },
-        index: { x: 0, y: -0.02 },
-        middle: { x: 0, y: -0.025 },
-        ring: { x: 0, y: -0.02 },
-        pinky: { x: 0.005, y: -0.015 }
-      },
-      
-      MAX_SIZES: {
-        thumb: 70,
-        index: 95,
-        middle: 105,
-        ring: 90,
-        pinky: 65
-      },
-      
-      MIN_SIZE: 35
-    };
+// ДУЖЕ ШИРОКІ НІГТІ - МАКСИМАЛЬНЕ РОЗШИРЕННЯ
+const CONFIG = {
+  SMOOTHING_FACTOR: 0.7,
+  HAND_NOT_DETECTED_THRESHOLD: 10,
+  
+  // ЗБІЛЬШЕНІ КОЕФІЦІЄНТИ МАСШТАБУ
+  NAIL_SCALE_FACTORS: {
+    thumb: 0.8,      // +0.3 (було 0.5)
+    index: 0.85,     // +0.25 (було 0.6)
+    middle: 0.9,     // +0.25 (було 0.65)
+    ring: 0.8,       // +0.25 (було 0.55)
+    pinky: 0.7       // +0.25 (було 0.45)
+  },
+  
+  // ДУЖЕ ШИРОКЕ СПІВВІДНОШЕННЯ СТОРІН
+  NAIL_ASPECT_RATIOS: {
+    thumb: 1.1,      // майже квадратні (було 0.6)
+    index: 1.0,      // квадратні (було 0.5)
+    middle: 0.9,     // дуже широкі (було 0.45)
+    ring: 1.0,       // квадратні (було 0.5)
+    pinky: 1.2       // ширші за висоту (було 0.55)
+  },
+  
+  // ЗМІЩЕННЯ ДЛЯ КОЖНОГО ПАЛЬЦЯ
+  NAIL_OFFSETS: {
+    thumb: { x: -0.015, y: -0.025 },
+    index: { x: 0, y: -0.025 },
+    middle: { x: 0, y: -0.03 },
+    ring: { x: 0, y: -0.025 },
+    pinky: { x: 0.008, y: -0.02 }
+  },
+  
+  // ЗНАЧНО ЗБІЛЬШЕНІ МАКСИМАЛЬНІ РОЗМІРИ
+  MAX_SIZES: {
+    thumb: 100,      // +30 (було 70)
+    index: 120,      // +25 (було 95)
+    middle: 130,     // +25 (було 105)
+    ring: 115,       // +25 (було 90)
+    pinky: 90        // +25 (було 65)
+  },
+  
+  MIN_SIZE: 40
+};
 
     const FINGER_INDICES = {
       thumb: { tip: 4, mcp: 2, pip: 3, ip: 3 },
@@ -1054,3 +1058,4 @@
   </script>
 </body>
 </html>
+
