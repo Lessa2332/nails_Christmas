@@ -76,7 +76,7 @@
     /* Mode Controls */
     #modeControls {
       position: fixed;
-      top: 90px;
+      top: 60px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
@@ -327,48 +327,50 @@ const CONFIG = {
   SMOOTHING_FACTOR: 0.7,
   HAND_NOT_DETECTED_THRESHOLD: 10,
   
-  // РАДИКАЛЬНО зменшені коефіцієнти для вузьких нігтів
+  // Оптимальні коефіцієнти розміру
   NAIL_SCALE_FACTORS: {
-    thumb: 0.15,
-    index: 0.18,
-    middle: 0.2,
-    ring: 0.16,
-    pinky: 0.12
-  },
-  
-  // МЕНШЕ значення = ВУЖЧИЙ ніготь!
-  NAIL_ASPECT_RATIOS: {
-    thumb: 0.3,      // 0.3 = в 3 рази вужчий за висоту
-    index: 0.25,
-    middle: 0.25,
-    ring: 0.3,
+    thumb: 0.5,
+    index: 0.6,
+    middle: 0.65,
+    ring: 0.55,
     pinky: 0.4
   },
   
+  // НОРМАЛЬНІ пропорції для нігтів (більше = витягнутіший)
+  NAIL_ASPECT_RATIOS: {
+    thumb: 0.8,      // Помірно витягнутий
+    index: 1.2,      // Витягнутий
+    middle: 1.2,     // Витягнутий
+    ring: 1.1,       // Помірно витягнутий
+    pinky: 0.9       // Майже квадратний
+  },
+  
+  // Зсуви для кращого позиціонування
   NAIL_OFFSETS: {
-    thumb: { x: -0.02, y: -0.03 },
-    index: { x: 0, y: -0.03 },
-    middle: { x: 0, y: -0.035 },
-    ring: { x: 0, y: -0.03 },
-    pinky: { x: 0.01, y: -0.025 }
+    thumb: { x: -0.01, y: -0.02 },
+    index: { x: 0, y: -0.02 },
+    middle: { x: 0, y: -0.025 },
+    ring: { x: 0, y: -0.02 },
+    pinky: { x: 0.005, y: -0.015 }
   },
   
+  // Максимальні розміри
   MAX_SIZES: {
-    thumb: 20,
-    index: 25,
-    middle: 28,
-    ring: 22,
-    pinky: 18
+    thumb: 50,
+    index: 70,
+    middle: 75,
+    ring: 60,
+    pinky: 45
   },
   
-  MIN_SIZE: 8,
-  MAX_SIZE: 40,
+  MIN_SIZE: 20,
+  MAX_SIZE: 90,
   
-  // ВИМИКАЄМО динамічне масштабування
-  WRIST_DISTANCE_REF: 0.2,
-  SCALE_SENSITIVITY: 0.8,
-  MAX_SCALE_FACTOR: 1.2,
-  MIN_SCALE_FACTOR: 0.8
+  // Динамічне масштабування
+  WRIST_DISTANCE_REF: 0.1,
+  SCALE_SENSITIVITY: 1.8,
+  MAX_SCALE_FACTOR: 2.0,
+  MIN_SCALE_FACTOR: 0.6
 };
 
 const FINGER_INDICES = {
@@ -545,8 +547,8 @@ class NailARApplication {
   createNails() {
     FINGER_KEYS.forEach(key => {
       const aspectRatio = CONFIG.NAIL_ASPECT_RATIOS[key];
-      // ВАЖЛИВО: правильний порядок - ширина, висота
-      const nailGeometry = new THREE.PlaneGeometry(aspectRatio, 1);
+      // ПРАВИЛЬНО: PlaneGeometry(width, height) - де width = 1, height = aspectRatio
+      const nailGeometry = new THREE.PlaneGeometry(1, aspectRatio);
       
       const nailMaterial = new THREE.MeshBasicMaterial({
         transparent: true,
@@ -847,12 +849,8 @@ class NailARApplication {
       0
     );
 
-    // ВАЖЛИВО: правильний порядок - ширина, висота
-    nail.scale.set(
-      nailSize * CONFIG.NAIL_ASPECT_RATIOS.thumb, // ширина
-      nailSize, // висота
-      1
-    );
+    // ПРАВИЛЬНО: scale.set(width, height, depth)
+    nail.scale.set(nailSize, nailSize * CONFIG.NAIL_ASPECT_RATIOS.thumb, 1);
     nail.rotation.z = angle;
   }
 
@@ -888,12 +886,8 @@ class NailARApplication {
       0
     );
 
-    // ВАЖЛИВО: правильний порядок - ширина, висота
-    nail.scale.set(
-      nailSize * CONFIG.NAIL_ASPECT_RATIOS[fingerKey], // ширина
-      nailSize, // висота
-      1
-    );
+    // ПРАВИЛЬНО: scale.set(width, height, depth)
+    nail.scale.set(nailSize, nailSize * CONFIG.NAIL_ASPECT_RATIOS[fingerKey], 1);
     nail.rotation.z = angle;
   }
 
