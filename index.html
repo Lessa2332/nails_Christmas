@@ -73,10 +73,10 @@
       left: 20px;
     }
 
-    /* Mode Controls */
+    /* Mode Controls — moved to top */
     #modeControls {
       position: fixed;
-      top: 60px;
+      top: 20px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
@@ -84,22 +84,24 @@
       z-index: 100;
       background: rgba(0, 0, 0, 0.5);
       backdrop-filter: blur(20px);
-      padding: 8px;
+      padding: 6px 12px;
       border-radius: 25px;
       border: 1px solid rgba(255, 255, 255, 0.2);
+      max-width: calc(100% - 120px);
     }
 
     .mode-btn {
-      padding: 10px 20px;
+      padding: 8px 16px;
       border-radius: 20px;
       background: linear-gradient(135deg, #667eea, #764ba2);
       color: white;
       border: none;
       font-weight: 600;
-      font-size: 14px;
+      font-size: 13px;
       cursor: pointer;
       transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+      white-space: nowrap;
     }
 
     .mode-btn:hover {
@@ -265,18 +267,25 @@
     /* Mobile Optimizations */
     @media (max-width: 768px) {
       .control-btn {
-        width: 45px;
-        height: 45px;
-        font-size: 18px;
+        width: 44px;
+        height: 44px;
+        font-size: 17px;
       }
 
       #modeControls {
-        top: 80px;
+        top: 18px;
+        gap: 8px;
+        padding: 5px 10px;
+      }
+
+      .mode-btn {
+        padding: 7px 14px;
+        font-size: 12px;
       }
 
       .design-btn {
-        width: 60px;
-        height: 60px;
+        width: 58px;
+        height: 58px;
       }
     }
   </style>
@@ -327,7 +336,6 @@ const CONFIG = {
   SMOOTHING_FACTOR: 0.7,
   HAND_NOT_DETECTED_THRESHOLD: 10,
   
-  // Оптимальні коефіцієнти розміру
   NAIL_SCALE_FACTORS: {
     thumb: 0.4,
     index: 0.5,
@@ -336,16 +344,15 @@ const CONFIG = {
     pinky: 0.4
   },
   
-  // НОРМАЛЬНІ пропорції для нігтів (більше = витягнутіший)
+  // Важливо: це тепер використовується для геометрії, а не масштабу
   NAIL_ASPECT_RATIOS: {
-    thumb: 0.8,      // Помірно витягнутий
-    index: 1.0,      // Витягнутий
-    middle: 1.0,     // Витягнутий
-    ring: 1.0,       // Помірно витягнутий
-    pinky: 0.9       // Майже квадратний
+    thumb: 0.8,
+    index: 0.7,      // зменшено для природного вигляду
+    middle: 0.7,
+    ring: 0.75,
+    pinky: 0.8
   },
   
-  // Зсуви для кращого позиціонування
   NAIL_OFFSETS: {
     thumb: { x: -0.01, y: -0.02 },
     index: { x: 0, y: -0.02 },
@@ -354,7 +361,6 @@ const CONFIG = {
     pinky: { x: 0.005, y: -0.015 }
   },
   
-  // Максимальні розміри
   MAX_SIZES: {
     thumb: 50,
     index: 60,
@@ -366,7 +372,6 @@ const CONFIG = {
   MIN_SIZE: 20,
   MAX_SIZE: 90,
   
-  // Динамічне масштабування
   WRIST_DISTANCE_REF: 0.1,
   SCALE_SENSITIVITY: 1.8,
   MAX_SCALE_FACTOR: 2.0,
@@ -409,7 +414,6 @@ const translations = {
   }
 };
 
-// Глобальний стан
 const state = {
   currentLang: 'en',
   currentDesign: "1",
@@ -425,7 +429,6 @@ const state = {
   wristDistance: 0
 };
 
-// DOM elements
 const elements = {
   video: document.getElementById("video"),
   canvas: document.getElementById("canvas"),
@@ -440,18 +443,15 @@ const elements = {
   handIndicator: document.getElementById("handIndicator")
 };
 
-// Audio system
 const audio = {
   bg: new Audio(),
   click: new Audio(),
   isLoaded: false
 };
 
-// Nail designs
 const DESIGNS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 const nailTextures = {};
 
-// Three.js scene
 let scene, camera, renderer;
 const nails = {};
 let handLandmarker;
@@ -546,8 +546,9 @@ class NailARApplication {
 
   createNails() {
     FINGER_KEYS.forEach(key => {
-      // ВАРІАНТ 1: квадратна геометрія для універсального масштабування
-      const nailGeometry = new THREE.PlaneGeometry(1, 1);
+      // ✅ Геометрія з правильним aspect ratio
+      const aspect = CONFIG.NAIL_ASPECT_RATIOS[key];
+      const nailGeometry = new THREE.PlaneGeometry(aspect, 1); // ширина = aspect, висота = 1
       
       const nailMaterial = new THREE.MeshBasicMaterial({
         transparent: true,
@@ -848,12 +849,8 @@ class NailARApplication {
       0
     );
 
-    // ВИПРАВЛЕННЯ: масштабування з урахуванням пропорцій
-    nail.scale.set(
-      nailSize,
-      nailSize * CONFIG.NAIL_ASPECT_RATIOS.thumb,
-      1
-    );
+    // ✅ Тепер масштаб однаковий — геометрія вже має правильну форму
+    nail.scale.set(nailSize, nailSize, 1);
     nail.rotation.z = angle;
   }
 
@@ -889,12 +886,8 @@ class NailARApplication {
       0
     );
 
-    // ВИПРАВЛЕННЯ: масштабування з урахуванням пропорцій
-    nail.scale.set(
-      nailSize,
-      nailSize * CONFIG.NAIL_ASPECT_RATIOS[fingerKey],
-      1
-    );
+    // ✅ Однаковий масштаб — пропорції в геометрії
+    nail.scale.set(nailSize, nailSize, 1);
     nail.rotation.z = angle;
   }
 
@@ -957,7 +950,6 @@ class NailARApplication {
     return closestIndex;
   }
 
-  // UI Methods
   toggleLanguage() {
     state.currentLang = state.currentLang === 'en' ? 'uk' : 'en';
     this.updateUI();
@@ -998,7 +990,7 @@ class NailARApplication {
     elements.selectFingerBtn.textContent = t.pickFinger;
     elements.handIndicator.innerHTML = `<span>✋</span><span>${t.handNotDetected}</span>`;
     
-    elements.langBtn.textContent = state.currentLang.toUpperCase();
+    elements.langBtn.textContent = state.currentLang === 'en' ? 'EN' : 'UK';
     this.updateSoundButton();
   }
 
@@ -1084,11 +1076,9 @@ class NailARApplication {
   }
 }
 
-// Start application
 window.addEventListener('DOMContentLoaded', () => {
   new NailARApplication();
 });
   </script>
 </body>
 </html>
-
