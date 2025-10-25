@@ -546,9 +546,8 @@ class NailARApplication {
 
   createNails() {
     FINGER_KEYS.forEach(key => {
-      const aspectRatio = CONFIG.NAIL_ASPECT_RATIOS[key];
-      // ПРАВИЛЬНО: PlaneGeometry(width, height) - де width = 1, height = aspectRatio
-      const nailGeometry = new THREE.PlaneGeometry(1, aspectRatio);
+      // ВАРІАНТ 1: квадратна геометрія для універсального масштабування
+      const nailGeometry = new THREE.PlaneGeometry(1, 1);
       
       const nailMaterial = new THREE.MeshBasicMaterial({
         transparent: true,
@@ -849,8 +848,12 @@ class NailARApplication {
       0
     );
 
-    // ПРАВИЛЬНО: scale.set(width, height, depth)
-    nail.scale.set(nailSize, nailSize * CONFIG.NAIL_ASPECT_RATIOS.thumb, 1);
+    // ВИПРАВЛЕННЯ: масштабування з урахуванням пропорцій
+    nail.scale.set(
+      nailSize,
+      nailSize * CONFIG.NAIL_ASPECT_RATIOS.thumb,
+      1
+    );
     nail.rotation.z = angle;
   }
 
@@ -886,8 +889,12 @@ class NailARApplication {
       0
     );
 
-    // ПРАВИЛЬНО: scale.set(width, height, depth)
-    nail.scale.set(nailSize, nailSize * CONFIG.NAIL_ASPECT_RATIOS[fingerKey], 1);
+    // ВИПРАВЛЕННЯ: масштабування з урахуванням пропорцій
+    nail.scale.set(
+      nailSize,
+      nailSize * CONFIG.NAIL_ASPECT_RATIOS[fingerKey],
+      1
+    );
     nail.rotation.z = angle;
   }
 
@@ -1084,5 +1091,3 @@ window.addEventListener('DOMContentLoaded', () => {
   </script>
 </body>
 </html>
-
-
