@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Halloween Nail AR Try-On</title>
+  <title>Чарівний Гелловінський Манікюр!</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>Halloween</text></svg>">
   <style>
     * {
@@ -13,13 +13,12 @@
       touch-action: manipulation;
     }
     body {
-      background: #0f0c29;
-      background: linear-gradient(135deg, #24243e, #302b63, #0f0c29);
+      background: linear-gradient(135deg, #ff9a9e, #fad0c4, #fad0c4);
       overflow: hidden;
       font-family: 'Arial', 'Segoe UI', system-ui, sans-serif;
       color: white;
     }
-    #video, #canvas, #ghostCanvas {
+    #video, #canvas, #ghostCanvas, #confettiCanvas {
       position: absolute;
       top: 0;
       left: 0;
@@ -30,15 +29,16 @@
     #video { z-index: 1; display: none; }
     #canvas { z-index: 2; display: none; }
     #ghostCanvas { z-index: 50; pointer-events: none; }
+    #confettiCanvas { z-index: 60; pointer-events: none; }
 
     .control-btn {
       position: fixed;
       width: 50px;
       height: 50px;
       border-radius: 50%;
-      background: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(20px);
-      border: 2px solid rgba(255, 255, 255, 0.3);
+      border: 2px solid rgba(255, 255, 255, 0.4);
       color: white;
       font-size: 20px;
       display: flex;
@@ -49,7 +49,7 @@
       transition: all 0.3s ease;
       box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
     }
-    .control-btn:hover { transform: scale(1.15); background: rgba(255, 255, 255, 0.25); }
+    .control-btn:hover { transform: scale(1.15); background: rgba(255, 255, 255, 0.3); }
 
     #langBtn { top: 20px; right: 20px; font-weight: bold; font-size: 16px; }
     #soundBtn { top: 20px; left: 20px; }
@@ -62,11 +62,11 @@
       display: flex;
       gap: 12px;
       z-index: 100;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.4);
       backdrop-filter: blur(20px);
       padding: 6px 12px;
       border-radius: 25px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
       max-width: calc(100% - 120px);
     }
     .mode-btn {
@@ -93,26 +93,26 @@
       display: flex;
       gap: 12px;
       z-index: 100;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(20px);
       padding: 15px;
       border-radius: 25px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
       max-width: 90vw;
       overflow-x: auto;
       scrollbar-width: none;
     }
     #designPicker::-webkit-scrollbar { display: none; }
     .design-btn {
-      width: 70px;
-      height: 70px;
-      border-radius: 20px;
+      width: 60px;
+      height: 90px;
+      border-radius: 16px;
       border: 3px solid rgba(255, 255, 255, 0.3);
-      background: #fff;
+      object-fit: contain;
+      background: transparent;
       cursor: pointer;
       transition: all 0.3s ease;
       flex-shrink: 0;
-      object-fit: cover;
     }
     .design-btn:hover { transform: scale(1.1); border-color: rgba(255, 255, 255, 0.6); }
     .design-btn.selected { transform: scale(1.15); border-color: #ffd700; box-shadow: 0 0 0 3px #ffd700; }
@@ -123,13 +123,13 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: linear-gradient(135deg, #0f0c29, #302b63);
+      background: linear-gradient(135deg, #ff9a9e, #fad0c4);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       z-index: 1000;
-      color: #ff9d00;
+      color: #ff6b6b;
       font-size: clamp(18px, 4vw, 24px);
       text-align: center;
       padding: 20px;
@@ -138,8 +138,8 @@
     .loader {
       width: 60px;
       height: 60px;
-      border: 4px solid rgba(255, 157, 0, 0.3);
-      border-top: 4px solid #ff9d00;
+      border: 4px solid rgba(255, 107, 107, 0.3);
+      border-top: 4px solid #ff6b6b;
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
@@ -158,7 +158,7 @@
       color: white;
       padding: 8px 16px;
       border-radius: 20px;
-      border: 1px solid rgba(255,  slaap: 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       display: none;
       align-items: center;
       gap: 8px;
@@ -194,39 +194,40 @@
       .control-btn { width: 44px; height: 44px; font-size: 17px; }
       #modeControls { top: 18px; gap: 8px; padding: 5px 10px; }
       .mode-btn { padding: 7px 14px; font-size: 12px; }
-      .design-btn { width: 58px; height: 58px; }
+      .design-btn { width: 50px; height: 75px; }
     }
   </style>
 </head>
 <body>
   <div id="loading">
     <div class="loader"></div>
-    <div id="loadingText">Loading Halloween Nail AR Experience...</div>
-    <p>Please allow camera access when prompted</p>
+    <div id="loadingText">Завантаження чарівного манікюру...</div>
+    <p>Дозвольте доступ до камери</p>
   </div>
 
   <video id="video" playsinline muted></video>
   <canvas id="canvas"></canvas>
   <canvas id="ghostCanvas"></canvas>
+  <canvas id="confettiCanvas"></canvas>
 
   <button id="langBtn" class="control-btn" aria-label="Switch language">EN</button>
   <button id="soundBtn" class="control-btn" aria-label="Toggle sound">Sound</button>
 
   <div id="modeControls">
-    <button class="mode-btn active" id="applyAllBtn" aria-label="Apply to all fingers">All Fingers</button>
-    <button class="mode-btn" id="selectFingerBtn" aria-label="Select finger">Select Finger</button>
+    <button class="mode-btn active" id="applyAllBtn" aria-label="Apply to all fingers">Усі пальці</button>
+    <button class="mode-btn" id="selectFingerBtn" aria-label="Select finger">Обрати палець</button>
   </div>
 
   <div id="designPicker"></div>
 
   <div id="cameraIndicator" class="indicator">
     <span>Camera</span>
-    <span>Camera Active</span>
+    <span>Камера активна</span>
   </div>
 
   <div id="handIndicator" class="indicator">
     <span>Hand</span>
-    <span>Show your hand to the camera</span>
+    <span>Покажи руку</span>
   </div>
 
   <script type="importmap">
@@ -244,24 +245,8 @@
     const CONFIG = {
       SMOOTHING_FACTOR: 0.7,
       HAND_NOT_DETECTED_THRESHOLD: 10,
-
-      NAIL_SCALE_FACTORS: {
-        thumb: 0.42,
-        index: 0.52,
-        middle: 0.54,
-        ring: 0.52,
-        pinky: 0.40
-      },
-
-      // ВИПРАВЛЕНО: aspect < 1.0 → витягнуті нігті
-      NAIL_ASPECT_RATIOS: {
-        thumb: 0.58,
-        index: 0.65,
-        middle: 0.68,
-        ring: 0.65,
-        pinky: 0.70
-      },
-
+      NAIL_SCALE_FACTORS: { thumb: 0.42, index: 0.52, middle: 0.54, ring: 0.52, pinky: 0.40 },
+      NAIL_ASPECT_RATIOS: { thumb: 0.58, index: 0.65, middle: 0.68, ring: 0.65, pinky: 0.70 },
       NAIL_OFFSETS: {
         thumb: { x: -0.01, y: -0.02 },
         index: { x: 0, y: -0.02 },
@@ -269,14 +254,9 @@
         ring: { x: 0, y: -0.02 },
         pinky: { x: 0.005, y: -0.015 }
       },
-
-      MIN_SIZE: 25,
-      MAX_SIZE: 85,
-
-      WRIST_DISTANCE_REF: 0.1,
-      SCALE_SENSITIVITY: 1.8,
-      MAX_SCALE_FACTOR: 2.0,
-      MIN_SCALE_FACTOR: 0.6
+      MIN_SIZE: 25, MAX_SIZE: 85,
+      WRIST_DISTANCE_REF: 0.1, SCALE_SENSITIVITY: 1.8,
+      MAX_SCALE_FACTOR: 2.0, MIN_SCALE_FACTOR: 0.6
     };
 
     const FINGER_INDICES = {
@@ -291,49 +271,51 @@
     const translations = {
       en: {
         title: "Halloween Nail AR Try-On",
-        loading: "Loading Halloween Nail AR Experience...",
-        cameraPrompt: "Please allow camera access when prompted",
+        loading: "Loading Magic Nail Experience...",
+        cameraPrompt: "Please allow camera access",
         allFingers: "All Fingers",
         pickFinger: "Select Finger",
-        cameraError: "Could not access camera.<br>Try Chrome or Safari.",
-        arError: "AR failed to load.<br>Refresh the page.",
+        cameraError: "Camera access denied.<br>Try Chrome or Safari.",
+        arError: "AR failed to load.<br>Refresh page.",
         retry: "Retry",
         cameraActive: "Camera Active",
-        handNotDetected: "Show your hand to the camera"
+        handNotDetected: "Show your hand"
       },
       uk: {
-        title: "Манікюр на Гелловін!",
-        loading: "Завантаження Гелловінського манікюру...",
-        cameraPrompt: "Надайте доступ до камери, коли з'явиться запит",
+        title: "Чарівний манікюр!",
+        loading: "Завантаження чарівного манікюру...",
+        cameraPrompt: "Дозвольте доступ до камери",
         allFingers: "Усі пальці",
         pickFinger: "Обрати палець",
-        cameraError: "Не вдалося отримати доступ до камери.<br>Спробуйте у Chrome або Safari.",
-        arError: "Помилка завантаження AR.<br>Спробуйте оновити сторінку.",
+        cameraError: "Немає доступу до камери.<br>Спробуйте Chrome або Safari.",
+        arError: "Помилка AR.<br>Оновіть сторінку.",
         retry: "Повторити",
         cameraActive: "Камера активна",
-       Ostat: "Наведіть руку в камеру"
+        handNotDetected: "Покажи руку"
       }
     };
 
     const state = {
-      currentLang: 'en',
+      currentLang: 'uk',
       currentDesign: "1",
       isApplyAll: true,
       selectedFingerIndex: -1,
-      isMuted: true,
+      isMuted: false,
       lastLandmarks: null,
       smoothedLandmarks: null,
       handNotDetectedCount: 0,
       animationFrameId: null,
       palmOrientation: { x: 0, y: 0 },
       currentHandSize: 1.0,
-      wristDistance: 0
+      wristDistance: 0,
+      rainbowTime: 0
     };
 
     const elements = {
       video: document.getElementById("video"),
       canvas: document.getElementById("canvas"),
       ghostCanvas: document.getElementById("ghostCanvas"),
+      confettiCanvas: document.getElementById("confettiCanvas"),
       loading: document.getElementById("loading"),
       loadingText: document.getElementById("loadingText"),
       langBtn: document.getElementById("langBtn"),
@@ -346,16 +328,26 @@
     };
 
     const ghostCtx = elements.ghostCanvas.getContext("2d");
+    const confettiCtx = elements.confettiCanvas.getContext("2d");
     let ghost = null;
+    let confetti = [];
 
-    function resizeGhostCanvas() {
-      elements.ghostCanvas.width = window.innerWidth;
-      elements.ghostCanvas.height = window.innerHeight;
+    function resizeCanvases() {
+      [elements.ghostCanvas, elements.confettiCanvas].forEach(c => {
+        c.width = window.innerWidth;
+        c.height = window.innerHeight;
+      });
     }
-    resizeGhostCanvas();
-    window.addEventListener('resize', resizeGhostCanvas);
+    resizeCanvases();
+    window.addEventListener('resize', resizeCanvases);
 
-    const audio = { bg: new Audio(), click: new Audio(), isLoaded: false };
+    const audio = {
+      cheer: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-magic-movement-3258.mp3'),
+      sparkle: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-sparkle-voice-2213.mp3')
+    };
+    audio.cheer.volume = 0.4;
+    audio.sparkle.volume = 0.3;
+
     const DESIGNS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
     const nailTextures = {};
 
@@ -363,7 +355,7 @@
     const nails = {};
     let handLandmarker;
 
-    // === ШЕЙДЕР ДЛЯ ГЕЛЬ-ЛАКУ ===
+    // РАЙДУЖНИЙ БЛИСК
     const NAIL_SHADER = {
       vertexShader: `
         varying vec2 vUv;
@@ -385,21 +377,29 @@
         varying vec3 vNormal;
         varying vec3 vViewPosition;
 
+        vec3 rainbow(float t) {
+          return vec3(
+            0.5 + 0.5 * sin(t),
+            0.5 + 0.5 * sin(t + 2.0),
+            0.5 + 0.5 * sin(t + 4.0)
+          );
+        }
+
         void main() {
           vec4 texColor = texture2D(map, vUv);
           if (texColor.a < 0.1) discard;
 
           vec3 color = texColor.rgb;
 
-          float shine = sin(vUv.x * 20.0 - time * 3.0) * 0.5 + 0.5;
-          shine = pow(shine, 3.0) * 0.6;
-          vec3 highlight = vec3(1.0) * shine * shineIntensity;
+          float shine = smoothstep(0.3, 0.7, vUv.y + sin(vUv.y * 8.0 - time * 1.5) * 0.1);
+          shine = pow(shine, 2.0) * 0.5;
+          vec3 highlight = rainbow(time * 3.0) * shine * shineIntensity;
 
-          float fresnel = pow(1.0 - dot(normalize(vViewPosition), vNormal), 2.0);
-          vec3 rim = vec3(1.0, 0.9, 0.8) * fresnel * 0.4;
+          float fresnel = pow(1.0 - dot(normalize(vViewPosition), vNormal), 3.0);
+          vec3 rim = vec3(1.0, 0.9, 0.8) * fresnel * 0.3;
 
-          float shadow = smoothstep(0.0, 0.3, vUv.y);
-          color *= (1.0 - shadow * 0.3);
+          float shadow = smoothstep(0.0, 0.25, vUv.y);
+          color *= (1.0 - shadow * 0.25);
 
           color = color + highlight + rim;
           gl_FragColor = vec4(color, texColor.a);
@@ -407,7 +407,39 @@
       `
     };
 
-    // === ПРИВИД ===
+    // КОНФЕТТІ
+    class ConfettiParticle {
+      constructor(x, y) {
+        this.x = x; this.y = y;
+        this.vx = (Math.random() - 0.5) * 8;
+        this.vy = Math.random() * -15 - 5;
+        this.size = Math.random() * 6 + 4;
+        this.color = `hsl(${Math.random() * 360}, 100%, 70%)`;
+        this.life = 1.0;
+        this.gravity = 0.4;
+        this.rotation = Math.random() * Math.PI * 2;
+        this.spin = (Math.random() - 0.5) * 0.3;
+      }
+      update() {
+        this.vy += this.gravity;
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life -= 0.015;
+        this.rotation += this.spin;
+      }
+      draw(ctx) {
+        if (this.life <= 0) return;
+        ctx.save();
+        ctx.globalAlpha = this.life;
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+        ctx.fillStyle = this.color;
+        ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
+        ctx.restore();
+      }
+    }
+
+    // ДРУЖНІЙ ПРИВИД
     class Ghost {
       constructor() {
         this.x = 0; this.y = 0; this.targetX = 0; this.targetY = 0;
@@ -416,7 +448,7 @@
         this.reset();
       }
       reset() { this.visible = false; this.opacity = 0; this.trail = []; }
-      appear(x, y) {
+      appear(x, y) {
         this.targetX = x; this.targetY = y;
         this.x = x + (Math.random() - 0.5) * 200;
         this.y = y + (Math.random() - 0.5) * 200;
@@ -468,16 +500,21 @@
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.fill();
+
+        // ДРУЖНІ ОЧІ
         ctx.fillStyle = '#000';
         ctx.beginPath();
-        ctx.arc(this.x - 15, this.y - 10, 8, 0, Math.PI * 2);
-        ctx.arc(this.x + 15, this.y - 10, 8, 0, Math.PI * 2);
+        ctx.arc(this.x - 15, this.y - 8, 6, 0, Math.PI * 2);
+        ctx.arc(this.x + 15, this.y - 8, 6, 0, Math.PI * 2);
         ctx.fill();
+
+        // ПОСМІШКА
         ctx.strokeStyle = '#000';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2.5;
         ctx.beginPath();
-        ctx.arc(this.x, this.y + 5, 12, 0.2, Math.PI - 0.2);
+        ctx.arc(this.x, this.y + 8, 10, 0.1, Math.PI - 0.1);
         ctx.stroke();
+
         ctx.globalAlpha = this.opacity * 0.3;
         ctx.shadowBlur = 30;
         ctx.shadowColor = '#66f';
@@ -516,7 +553,7 @@
         elements.selectFingerBtn.addEventListener('click', () => this.setSelectFingerMode());
         elements.canvas.addEventListener('click', (e) => this.handleCanvasClick(e));
         elements.canvas.addEventListener('touchstart', (e) => this.handleCanvasClick(e));
-        window.addEventListener('resize', () => { this.handleResize(); resizeGhostCanvas(); });
+        window.addEventListener('resize', () => { this.handleResize(); resizeCanvases(); });
         window.addEventListener('beforeunload', () => this.cleanup());
       }
 
@@ -556,7 +593,7 @@
 
         FINGER_KEYS.forEach(key => {
           const aspect = CONFIG.NAIL_ASPECT_RATIOS[key];
-          const geometry = new THREE.PlaneGeometry(aspect, 1); // БАЗОВА ГЕОМЕТРІЯ З АСПЕКТОМ
+          const geometry = new THREE.PlaneGeometry(aspect, 1);
           const material = shaderMaterial.clone();
           const nail = new THREE.Mesh(geometry, material);
           nail.visible = false;
@@ -595,11 +632,11 @@
           };
           img.onerror = () => {
             const canvas = document.createElement('canvas');
-            canvas.width = 100; canvas.height = 100;
+            canvas.width = 100; canvas.height = 170;
             const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#FF6B6B'; ctx.fillRect(0, 0, 100, 100);
+            ctx.fillStyle = '#FF6B6B'; ctx.fillRect(0, 0, 100, 170);
             ctx.fillStyle = 'white'; ctx.font = '16px Arial'; ctx.textAlign = 'center';
-            ctx.fillText(name, 50, 55);
+            ctx.fillText(name, 50, 90);
             nailTextures[name] = new THREE.CanvasTexture(canvas);
             resolve();
           };
@@ -615,16 +652,14 @@
           btn.className = `design-btn ${name === state.currentDesign ? 'selected' : ''}`;
           btn.alt = `Design ${name}`;
           btn.loading = 'lazy';
-          btn.addEventListener('click', () => { this.selectDesign(name); this.playSound(audio.click); });
+          btn.addEventListener('click', () => { this.selectDesign(name); });
           elements.designPicker.appendChild(btn);
         });
       }
 
       setupAudio() {
-        audio.bg.loop = true; audio.bg.volume = 0.3;
-        audio.click.volume = 0.6;
-        // audio.bg.src = 'audio/bg-music.mp3'; // Увімкни, якщо є файл
-        // audio.click.src = 'audio/click.mp3';
+        audio.cheer.loop = false;
+        audio.sparkle.loop = false;
       }
 
       playSound(sound) {
@@ -634,17 +669,15 @@
 
       toggleSound() {
         state.isMuted = !state.isMuted;
-        state.isMuted ? audio.bg.pause() : this.playBackgroundMusic();
         this.updateSoundButton();
-        this.playSound(audio.click);
       }
-
-      playBackgroundMusic() { if (!state.isMuted) audio.bg.play().catch(() => {}); }
 
       startRenderLoop() {
         const render = () => {
           this.detectHands();
           this.renderAR();
+          this.updateConfetti();
+          this.updateRainbowShine();
 
           const time = performance.now() * 0.001;
           FINGER_KEYS.forEach(key => {
@@ -670,6 +703,23 @@
           state.animationFrameId = requestAnimationFrame(render);
         };
         render();
+      }
+
+      updateConfetti() {
+        confetti = confetti.filter(p => p.life > 0);
+        confetti.forEach(p => p.update());
+        confettiCtx.clearRect(0, 0, elements.confettiCanvas.width, elements.confettiCanvas.height);
+        confetti.forEach(p => p.draw(confettiCtx));
+      }
+
+      updateRainbowShine() {
+        state.rainbowTime += 0.02;
+        FINGER_KEYS.forEach(key => {
+          const mat = nails[key].material;
+          if (mat && mat.uniforms) {
+            mat.uniforms.shineIntensity.value = 0.8 + 0.2 * Math.sin(state.rainbowTime);
+          }
+        });
       }
 
       detectHands() {
@@ -757,31 +807,26 @@
         }
       }
 
-      // ВИПРАВЛЕНО: використовується aspectRatio
       updateThumbNailPosition(fingerKey, landmarks) {
         const nail = nails[fingerKey];
         const { tip, mcp, ip } = FINGER_INDICES[fingerKey];
-        const wrist = landmarks[0];
         const tipLandmark = landmarks[tip];
         const mcpLandmark = landmarks[mcp];
         const ipLandmark = landmarks[ip];
-        const thumbDirection = this.calculateThumbDirection(tipLandmark, mcpLandmark, wrist);
-        const thumbOffset = this.calculateThumbOffset(thumbDirection);
+        const thumbDirection = { x: tipLandmark.x - landmarks[0].x, y: tipLandmark.y - landmarks[0].y };
+        const thumbOffset = { x: CONFIG.NAIL_OFFSETS.thumb.x - Math.min(Math.hypot(thumbDirection.x, thumbDirection.y) * 5, 0.02), y: CONFIG.NAIL_OFFSETS.thumb.y };
         const screenX = (tipLandmark.x + thumbOffset.x) * window.innerWidth;
         const screenY = (1 - (tipLandmark.y + thumbOffset.y)) * window.innerHeight;
         const thumbLength = Math.hypot((tipLandmark.x - mcpLandmark.x) * window.innerWidth, (tipLandmark.y - mcpLandmark.y) * window.innerHeight);
-        let nailHeight = thumbLength * CONFIG.NAIL_SCALE_FACTORS.thumb;
-        nailHeight *= state.currentHandSize;
-        nailHeight = Math.min(nailHeight, CONFIG.MAX_SIZE);
-        nailHeight = Math.max(nailHeight, CONFIG.MIN_SIZE);
+        let nailHeight = thumbLength * CONFIG.NAIL_SCALE_FACTORS.thumb * state.currentHandSize;
+        nailHeight = Math.max(CONFIG.MIN_SIZE, Math.min(CONFIG.MAX_SIZE, nailHeight));
         const angle = Math.atan2(tipLandmark.y - ipLandmark.y, tipLandmark.x - ipLandmark.x);
         nail.position.set(screenX - window.innerWidth / 2, screenY - window.innerHeight / 2, 0);
         const aspect = CONFIG.NAIL_ASPECT_RATIOS[fingerKey];
-        nail.scale.set(nailHeight * aspect, nailHeight, 1); // ВИПРАВЛЕНО
+        nail.scale.set(nailHeight * aspect, nailHeight, 1);
         nail.rotation.z = angle;
       }
 
-      // ВИПРАВЛЕНО: використовується aspectRatio
       updateFingerNailPosition(fingerKey, landmarks) {
         const nail = nails[fingerKey];
         const { tip, pip } = FINGER_INDICES[fingerKey];
@@ -791,26 +836,13 @@
         const screenX = (tipLandmark.x + offset.x) * window.innerWidth;
         const screenY = (1 - (tipLandmark.y + offset.y)) * window.innerHeight;
         const fingerLength = Math.hypot((tipLandmark.x - pipLandmark.x) * window.innerWidth, (tipLandmark.y - pipLandmark.y) * window.innerHeight);
-        let nailHeight = fingerLength * CONFIG.NAIL_SCALE_FACTORS[fingerKey];
-        nailHeight *= state.currentHandSize;
-        nailHeight = Math.min(nailHeight, CONFIG.MAX_SIZE);
-        nailHeight = Math.max(nailHeight, CONFIG.MIN_SIZE);
+        let nailHeight = fingerLength * CONFIG.NAIL_SCALE_FACTORS[fingerKey] * state.currentHandSize;
+        nailHeight = Math.max(CONFIG.MIN_SIZE, Math.min(CONFIG.MAX_SIZE, nailHeight));
         const angle = Math.atan2(tipLandmark.y - pipLandmark.y, tipLandmark.x - pipLandmark.x);
         nail.position.set(screenX - window.innerWidth / 2, screenY - window.innerHeight / 2, 0);
         const aspect = CONFIG.NAIL_ASPECT_RATIOS[fingerKey];
-        nail.scale.set(nailHeight * aspect, nailHeight, 1); // ВИПРАВЛЕНО
+        nail.scale.set(nailHeight * aspect, nailHeight, 1);
         nail.rotation.z = angle;
-      }
-
-      calculateThumbDirection(tip, mcp, wrist) {
-        return { x: tip.x - wrist.x, y: tip.y - wrist.y };
-      }
-
-      calculateThumbOffset(thumbDirection) {
-        const baseOffset = CONFIG.NAIL_OFFSETS.thumb;
-        const magnitude = Math.hypot(thumbDirection.x, thumbDirection.y);
-        const correctionFactor = Math.min(magnitude * 5, 0.02);
-        return { x: baseOffset.x - correctionFactor, y: baseOffset.y - correctionFactor * 0.5 };
       }
 
       hideAllNails() {
@@ -825,7 +857,7 @@
         const x = (event.clientX || event.touches[0].clientX) - rect.left;
         const y = (event.clientY || event.touches[0].clientY) - rect.top;
         state.selectedFingerIndex = this.getClosestFinger(x, y);
-        this.playSound(audio.click);
+        this.playSound(audio.sparkle);
       }
 
       getClosestFinger(touchX, touchY) {
@@ -847,7 +879,7 @@
       toggleLanguage() {
         state.currentLang = state.currentLang === 'en' ? 'uk' : 'en';
         this.updateUI();
-        this.playSound(audio.click);
+        this.playSound(audio.sparkle);
       }
 
       setApplyAllMode() {
@@ -855,14 +887,14 @@
         state.selectedFingerIndex = -1;
         elements.applyAllBtn.classList.add('active');
         elements.selectFingerBtn.classList.remove('active');
-        this.playSound(audio.click);
+        this.playSound(audio.sparkle);
       }
 
       setSelectFingerMode() {
         state.isApplyAll = false;
         elements.applyAllBtn.classList.remove('active');
         elements.selectFingerBtn.classList.add('active');
-        this.playSound(audio.click);
+        this.playSound(audio.sparkle);
       }
 
       selectDesign(name) {
@@ -870,7 +902,17 @@
         document.querySelectorAll('.design-btn').forEach(btn => {
           btn.classList.toggle('selected', btn.src.includes(`${name}.png`));
         });
-        this.playSound(audio.click);
+        this.playSound(audio.cheer);
+        this.triggerConfetti();
+      }
+
+      triggerConfetti() {
+        const rect = elements.designPicker.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        for (let i = 0; i < 50; i++) {
+          confetti.push(new ConfettiParticle(x + (Math.random() - 0.5) * 100, y));
+        }
       }
 
       updateUI() {
@@ -929,7 +971,6 @@
         if (state.animationFrameId) cancelAnimationFrame(state.animationFrameId);
         if (elements.video.srcObject) elements.video.srcObject.getTracks().forEach(track => track.stop());
         if (handLandmarker) handLandmarker.close();
-        if (audio.bg) audio.bg.pause();
         if (ghost) ghost.reset();
       }
     }
@@ -938,4 +979,3 @@
   </script>
 </body>
 </html>
-
