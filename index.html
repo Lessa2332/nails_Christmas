@@ -54,6 +54,37 @@
     #langBtn { top: 20px; right: 20px; font-weight: bold; font-size: 16px; }
     #soundBtn { top: 20px; left: 20px; }
 
+    /* КНОПКА АВТОРА — ЯСКРАВИЙ ГЕЛЛОВІН */
+    #authorBtn {
+      position: fixed;
+      top: 78px;
+      right: 20px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff6b6b, #ff4757);
+      border: 3px solid #ffd700;
+      color: white;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 100;
+      transition: all 0.3s ease;
+      box-shadow: 0 6px 20px rgba(255, 71, 87, 0.5), 0 0 0 4px #ffd700;
+      animation: pulse-glow 2s infinite;
+    }
+    #authorBtn:hover {
+      transform: scale(1.2) rotate(10deg);
+      background: linear-gradient(135deg, #ff4757, #ff6b6b);
+      box-shadow: 0 8px 25px rgba(255, 71, 87, 0.7), 0 0 0 6px #ffd700;
+    }
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 6px 20px rgba(255, 71, 87, 0.5), 0 0 0 4px #ffd700; }
+      50% { box-shadow: 0 8px 30px rgba(255, 71, 87, 0.7), 0 0 0 6px #ffd700; }
+    }
+
     #modeControls {
       position: fixed;
       top: 20px;
@@ -192,6 +223,7 @@
 
     @media (max-width: 768px) {
       .control-btn { width: 44px; height: 44px; font-size: 17px; }
+      #authorBtn { width: 50px; height: 50px; top: 74px; font-size: 22px; }
       #modeControls { top: 18px; gap: 8px; padding: 5px 10px; }
       .mode-btn { padding: 7px 14px; font-size: 12px; }
       .design-btn { width: 50px; height: 75px; }
@@ -212,6 +244,11 @@
 
   <button id="langBtn" class="control-btn" aria-label="Switch language">EN</button>
   <button id="soundBtn" class="control-btn" aria-label="Toggle sound">Sound</button>
+
+  <!-- КНОПКА АВТОРА -->
+  <a href="https://smartlessa.etsy.com" target="_blank" id="authorBtn" aria-label="Автор: smartlessa.etsy.com">
+    Author
+  </a>
 
   <div id="modeControls">
     <button class="mode-btn active" id="applyAllBtn" aria-label="Apply to all fingers">Усі пальці</button>
@@ -320,6 +357,7 @@
       loadingText: document.getElementById("loadingText"),
       langBtn: document.getElementById("langBtn"),
       soundBtn: document.getElementById("soundBtn"),
+      authorBtn: document.getElementById("authorBtn"),
       applyAllBtn: document.getElementById("applyAllBtn"),
       selectFingerBtn: document.getElementById("selectFingerBtn"),
       designPicker: document.getElementById("designPicker"),
@@ -448,7 +486,7 @@
         this.reset();
       }
       reset() { this.visible = false; this.opacity = 0; this.trail = []; }
-      appear(x, y) {
+      appear(x, y) {
         this.targetX = x; this.targetY = y;
         this.x = x + (Math.random() - 0.5) * 200;
         this.y = y + (Math.random() - 0.5) * 200;
@@ -949,7 +987,7 @@
         camera.left = -window.innerWidth / 2;
         camera.right = window.innerWidth / 2;
         camera.top = window.innerHeight / 2;
-        camera.bottom = -window.innerHeight / 2;
+        camera.bottom = = -window.innerHeight / 2;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
       }
