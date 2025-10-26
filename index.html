@@ -71,7 +71,7 @@
     }
     .mode-btn {
       padding: 8px 16px;
-      border-radius: 20rpx;
+      border-radius: 20px;
       background: linear-gradient(135deg, #667eea, #764ba2);
       color: white;
       border: none;
@@ -158,7 +158,7 @@
       color: white;
       padding: 8px 16px;
       border-radius: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255,  slaap: 255, 0.2);
       display: none;
       align-items: center;
       gap: 8px;
@@ -253,6 +253,7 @@
         pinky: 0.40
       },
 
+      // ВИПРАВЛЕНО: aspect < 1.0 → витягнуті нігті
       NAIL_ASPECT_RATIOS: {
         thumb: 0.78,
         index: 0.58,
@@ -310,7 +311,7 @@
         arError: "Помилка завантаження AR.<br>Спробуйте оновити сторінку.",
         retry: "Повторити",
         cameraActive: "Камера активна",
-        handNotDetected: "Наведіть руку в камеру"
+       Ostat: "Наведіть руку в камеру"
       }
     };
 
@@ -555,7 +556,7 @@
 
         FINGER_KEYS.forEach(key => {
           const aspect = CONFIG.NAIL_ASPECT_RATIOS[key];
-          const geometry = new THREE.PlaneGeometry(aspect, 1);
+          const geometry = new THREE.PlaneGeometry(aspect, 1); // БАЗОВА ГЕОМЕТРІЯ З АСПЕКТОМ
           const material = shaderMaterial.clone();
           const nail = new THREE.Mesh(geometry, material);
           nail.visible = false;
@@ -622,8 +623,8 @@
       setupAudio() {
         audio.bg.loop = true; audio.bg.volume = 0.3;
         audio.click.volume = 0.6;
-        audio.bg.src = 'audio/bg-music.mp3';
-        audio.click.src = 'audio/click.mp3';
+        // audio.bg.src = 'audio/bg-music.mp3'; // Увімкни, якщо є файл
+        // audio.click.src = 'audio/click.mp3';
       }
 
       playSound(sound) {
@@ -676,23 +677,23 @@
         try {
           const predictions = handLandmarker.detectForVideo(elements.video, performance.now());
           if (predictions.landmarks?.length > 0) {
-                state.handNotDetectedCount = 0;
-                this.hideHandIndicator();
-                const landmarks = predictions.landmarks[0];
-                state.lastLandmarks = this.smoothLandmarks(landmarks);
-                this.updatePalmOrientation(landmarks);
-                this.calculateHandSize(landmarks);
-              } else {
-                state.handNotDetectedCount++;
-                if (state.handNotDetectedCount > CONFIG.HAND_NOT_DETECTED_THRESHOLD) {
-                  this.showHandIndicator();
-                  this.hideAllNails();
-                }
-              }
-            } catch (error) {
-              console.error('Hand detection error:', error);
+            state.handNotDetectedCount = 0;
+            this.hideHandIndicator();
+            const landmarks = predictions.landmarks[0];
+            state.lastLandmarks = this.smoothLandmarks(landmarks);
+            this.updatePalmOrientation(landmarks);
+            this.calculateHandSize(landmarks);
+          } else {
+            state.handNotDetectedCount++;
+            if (state.handNotDetectedCount > CONFIG.HAND_NOT_DETECTED_THRESHOLD) {
+              this.showHandIndicator();
+              this.hideAllNails();
             }
           }
+        } catch (error) {
+          console.error('Hand detection error:', error);
+        }
+      }
 
       calculateHandSize(landmarks) {
         const wristStart = landmarks[0];
@@ -756,6 +757,7 @@
         }
       }
 
+      // ВИПРАВЛЕНО: використовується aspectRatio
       updateThumbNailPosition(fingerKey, landmarks) {
         const nail = nails[fingerKey];
         const { tip, mcp, ip } = FINGER_INDICES[fingerKey];
@@ -774,10 +776,12 @@
         nailHeight = Math.max(nailHeight, CONFIG.MIN_SIZE);
         const angle = Math.atan2(tipLandmark.y - ipLandmark.y, tipLandmark.x - ipLandmark.x);
         nail.position.set(screenX - window.innerWidth / 2, screenY - window.innerHeight / 2, 0);
-        nail.scale.set(nailHeight, nailHeight, 1);
+        const aspect = CONFIG.NAIL_ASPECT_RATIOS[fingerKey];
+        nail.scale.set(nailHeight * aspect, nailHeight, 1); // ВИПРАВЛЕНО
         nail.rotation.z = angle;
       }
 
+      // ВИПРАВЛЕНО: використовується aspectRatio
       updateFingerNailPosition(fingerKey, landmarks) {
         const nail = nails[fingerKey];
         const { tip, pip } = FINGER_INDICES[fingerKey];
@@ -793,7 +797,8 @@
         nailHeight = Math.max(nailHeight, CONFIG.MIN_SIZE);
         const angle = Math.atan2(tipLandmark.y - pipLandmark.y, tipLandmark.x - pipLandmark.x);
         nail.position.set(screenX - window.innerWidth / 2, screenY - window.innerHeight / 2, 0);
-        nail.scale.set(nailHeight, nailHeight, 1);
+        const aspect = CONFIG.NAIL_ASPECT_RATIOS[fingerKey];
+        nail.scale.set(nailHeight * aspect, nailHeight, 1); // ВИПРАВЛЕНО
         nail.rotation.z = angle;
       }
 
