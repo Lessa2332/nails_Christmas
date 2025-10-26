@@ -54,7 +54,6 @@
     #langBtn { top: 20px; right: 20px; font-weight: bold; font-size: 16px; }
     #soundBtn { top: 20px; left: 20px; }
 
-    /* КНОПКА АВТОРА — ЯСКРАВИЙ ГЕЛЛОВІН */
     #authorBtn {
       position: fixed;
       top: 78px;
@@ -155,6 +154,8 @@
       width: 100%;
       height: 100%;
       background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+ |
+
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -245,7 +246,6 @@
   <button id="langBtn" class="control-btn" aria-label="Switch language">UK</button>
   <button id="soundBtn" class="control-btn" aria-label="Toggle sound">Sound</button>
 
-  <!-- КНОПКА АВТОРА -->
   <a href="https://smartlessa.etsy.com" target="_blank" id="authorBtn" aria-label="Author: smartlessa.etsy.com">
     Author
   </a>
@@ -332,9 +332,8 @@
       }
     };
 
-    // ПОЧАТКОВА МОВА — АНГЛІЙСЬКА
     const state = {
-      currentLang: 'en',  // ЗМІНЕНО: тепер 'en' за замовчуванням
+      currentLang: 'en',
       currentDesign: "1",
       isApplyAll: true,
       selectedFingerIndex: -1,
@@ -346,7 +345,8 @@
       palmOrientation: { x: 0, y: 0 },
       currentHandSize: 1.0,
       wristDistance: 0,
-      rainbowTime: 0
+      rainbowTime: 0,
+      isAudioUnlocked: false
     };
 
     const elements = {
@@ -380,12 +380,14 @@
     resizeCanvases();
     window.addEventListener('resize', resizeCanvases);
 
+    // ЛОКАЛЬНІ АУДІОФАЙЛИ
     const audio = {
-      cheer: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-magic-movement-3258.mp3'),
-      sparkle: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-sparkle-voice-2213.mp3')
+      bgMusic: new Audio('audio/bg-music.mp3'),
+      click: new Audio('audio/click.mp3')
     };
-    audio.cheer.volume = 0.4;
-    audio.sparkle.volume = 0.3;
+    audio.bgMusic.loop = true;
+    audio.bgMusic.volume = 0.4;
+    audio.click.volume = 0.5;
 
     const DESIGNS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
     const nailTextures = {};
@@ -394,7 +396,6 @@
     const nails = {};
     let handLandmarker;
 
-    // РАЙДУЖНИЙ БЛИСК
     const NAIL_SHADER = {
       vertexShader: `
         varying vec2 vUv;
@@ -446,7 +447,6 @@
       `
     };
 
-    // КОНФЕТТІ
     class ConfettiParticle {
       constructor(x, y) {
         this.x = x; this.y = y;
@@ -478,7 +478,6 @@
       }
     }
 
-    // ДРУЖНІЙ ПРИВИД
     class Ghost {
       constructor() {
         this.x = 0; this.y = 0; this.targetX = 0; this.targetY = 0;
@@ -524,7 +523,7 @@
         ctx.save();
         ctx.globalAlpha = this.opacity;
         this.trail.forEach(p => {
-          ctx.globalAlpha = p.alpha * this.opacity;
+          ctx.globalAlpha = this.opacity * p.alpha;
           ctx.fillStyle = '#a0f0ff';
           ctx.beginPath();
           ctx.arc(p.x, p.y, this.size * 0.3, 0, Math.PI * 2);
@@ -574,13 +573,51 @@
           await this.setupHandTracking();
           await this.loadResources();
           this.setupAudio();
-          this.updateUI(); // Викликається після завантаження — з англійською
+          this.updateUI();
           this.hideLoading();
           ghost = new Ghost();
           this.startRenderLoop();
+          this.unlockAudio(); // Розблокувати звук після взаємодії
         } catch (error) {
           this.handleError(error);
         }
+      }
+
+      unlockAudio() {
+        const unlock = () => {
+          if (state.isAudioUnlocked) return;
+          state.isAudioUnlocked = true;
+          if (!state.isMuted) {
+            audio.bgMusic.play().catch(() => {});
+          }
+          document.removeEventListener('click', unlock);
+          document.removeEventListener('touchstart', unlock);
+        };
+        document.addEventListener('click', unlock, { once: true });
+        document.addEventListener('touchstart', unlock, { once: true });
+      }
+
+      setupAudio() {
+        // Налаштування вже зроблено вище
+      }
+
+      playSound(sound) {
+        if (state.isMuted || !state.isAudioUnlocked) return;
+        try {
+          sound.currentTime = 0;
+          sound.play().catch(() => {});
+        } catch (e) {}
+      }
+
+      toggleSound() {
+        state.isMuted = !state.isMuted;
+        if (state.isMuted) {
+          audio.bgMusic.pause();
+        } else if (state.isAudioUnlocked) {
+          audio.bgMusic.play().catch(() => {});
+        }
+        this.updateSoundButton();
+        this.playSound(audio.click);
       }
 
       setupEventListeners() {
@@ -692,21 +729,6 @@
           btn.addEventListener('click', () => { this.selectDesign(name); });
           elements.designPicker.appendChild(btn);
         });
-      }
-
-      setupAudio() {
-        audio.cheer.loop = false;
-        audio.sparkle.loop = false;
-      }
-
-      playSound(sound) {
-        if (state.isMuted) return;
-        try { sound.currentTime = 0; sound.play().catch(() => {}); } catch (e) {}
-      }
-
-      toggleSound() {
-        state.isMuted = !state.isMuted;
-        this.updateSoundButton();
       }
 
       startRenderLoop() {
@@ -894,7 +916,7 @@
         const x = (event.clientX || event.touches[0].clientX) - rect.left;
         const y = (event.clientY || event.touches[0].clientY) - rect.top;
         state.selectedFingerIndex = this.getClosestFinger(x, y);
-        this.playSound(audio.sparkle);
+        this.playSound(audio.click);
       }
 
       getClosestFinger(touchX, touchY) {
@@ -903,8 +925,8 @@
           const tipIndex = FINGER_INDICES[key].tip;
           const landmark = state.lastLandmarks[tipIndex];
           const x = landmark.x * window.innerWidth;
-          const y = landmark.y * window.innerHeight;
-          const dist = Math.euc(touchX - x, touchY - y);
+          const y = (1 - landmark.y) * window.innerHeight;
+          const dist = Math.hypot(touchX - x, touchY - y); // ВИПРАВЛЕНО: Math.euc → Math.hypot
           if (dist < minDist && dist < window.innerWidth * 0.1) {
             minDist = dist;
             closestIndex = index;
@@ -917,7 +939,7 @@
         state.currentLang = state.currentLang === 'en' ? 'uk' : 'en';
         this.updateUI();
         elements.langBtn.textContent = state.currentLang === 'en' ? 'UK' : 'EN';
-        this.playSound(audio.sparkle);
+        this.playSound(audio.click);
       }
 
       setApplyAllMode() {
@@ -925,14 +947,14 @@
         state.selectedFingerIndex = -1;
         elements.applyAllBtn.classList.add('active');
         elements.selectFingerBtn.classList.remove('active');
-        this.playSound(audio.sparkle);
+        this.playSound(audio.click);
       }
 
       setSelectFingerMode() {
         state.isApplyAll = false;
         elements.applyAllBtn.classList.remove('active');
         elements.selectFingerBtn.classList.add('active');
-        this.playSound(audio.sparkle);
+        this.playSound(audio.click);
       }
 
       selectDesign(name) {
@@ -940,7 +962,7 @@
         document.querySelectorAll('.design-btn').forEach(btn => {
           btn.classList.toggle('selected', btn.src.includes(`${name}.png`));
         });
-        this.playSound(audio.cheer);
+        this.playSound(audio.click);
         this.triggerConfetti();
       }
 
@@ -999,7 +1021,7 @@
         const t = translations[state.currentLang];
         let message = error.message === 'CAMERA_ERROR' ? t.cameraError : t.arError;
         elements.loading.innerHTML = `
-          <div style="color: #ff4757; font-size: 24px; margin-bottom: 20px;">Error</div>
+          <div style="color: #ff4757; font-size: 24: 24px; margin-bottom: 20px;">Error</div>
           <div style="color: white; font-size: 18px; margin-bottom: 20px; line-height: 1.4;">${message}</div>
           <button id="errorRetry">${t.retry}</button>
         `;
