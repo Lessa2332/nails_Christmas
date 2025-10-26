@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Чарівний Гелловінський Манікюр!</title>
+  <title>Halloween Nail AR Try-On</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>Halloween</text></svg>">
   <style>
     * {
@@ -233,8 +233,8 @@
 <body>
   <div id="loading">
     <div class="loader"></div>
-    <div id="loadingText">Завантаження чарівного манікюру...</div>
-    <p>Дозвольте доступ до камери</p>
+    <div id="loadingText">Loading Magic Nail Experience...</div>
+    <p>Please allow camera access</p>
   </div>
 
   <video id="video" playsinline muted></video>
@@ -242,29 +242,29 @@
   <canvas id="ghostCanvas"></canvas>
   <canvas id="confettiCanvas"></canvas>
 
-  <button id="langBtn" class="control-btn" aria-label="Switch language">EN</button>
+  <button id="langBtn" class="control-btn" aria-label="Switch language">UK</button>
   <button id="soundBtn" class="control-btn" aria-label="Toggle sound">Sound</button>
 
   <!-- КНОПКА АВТОРА -->
-  <a href="https://smartlessa.etsy.com" target="_blank" id="authorBtn" aria-label="Автор: smartlessa.etsy.com">
+  <a href="https://smartlessa.etsy.com" target="_blank" id="authorBtn" aria-label="Author: smartlessa.etsy.com">
     Author
   </a>
 
   <div id="modeControls">
-    <button class="mode-btn active" id="applyAllBtn" aria-label="Apply to all fingers">Усі пальці</button>
-    <button class="mode-btn" id="selectFingerBtn" aria-label="Select finger">Обрати палець</button>
+    <button class="mode-btn active" id="applyAllBtn" aria-label="Apply to all fingers">All Fingers</button>
+    <button class="mode-btn" id="selectFingerBtn" aria-label="Select finger">Select Finger</button>
   </div>
 
   <div id="designPicker"></div>
 
   <div id="cameraIndicator" class="indicator">
     <span>Camera</span>
-    <span>Камера активна</span>
+    <span>Camera Active</span>
   </div>
 
   <div id="handIndicator" class="indicator">
     <span>Hand</span>
-    <span>Покажи руку</span>
+    <span>Show your hand</span>
   </div>
 
   <script type="importmap">
@@ -332,8 +332,9 @@
       }
     };
 
+    // ПОЧАТКОВА МОВА — АНГЛІЙСЬКА
     const state = {
-      currentLang: 'uk',
+      currentLang: 'en',  // ЗМІНЕНО: тепер 'en' за замовчуванням
       currentDesign: "1",
       isApplyAll: true,
       selectedFingerIndex: -1,
@@ -539,14 +540,12 @@
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.fill();
 
-        // ДРУЖНІ ОЧІ
         ctx.fillStyle = '#000';
         ctx.beginPath();
         ctx.arc(this.x - 15, this.y - 8, 6, 0, Math.PI * 2);
         ctx.arc(this.x + 15, this.y - 8, 6, 0, Math.PI * 2);
         ctx.fill();
 
-        // ПОСМІШКА
         ctx.strokeStyle = '#000';
         ctx.lineWidth = 2.5;
         ctx.beginPath();
@@ -575,7 +574,7 @@
           await this.setupHandTracking();
           await this.loadResources();
           this.setupAudio();
-          this.updateUI();
+          this.updateUI(); // Викликається після завантаження — з англійською
           this.hideLoading();
           ghost = new Ghost();
           this.startRenderLoop();
@@ -905,7 +904,7 @@
           const landmark = state.lastLandmarks[tipIndex];
           const x = landmark.x * window.innerWidth;
           const y = landmark.y * window.innerHeight;
-          const dist = Math.hypot(touchX - x, touchY - y);
+          const dist = Math.euc(touchX - x, touchY - y);
           if (dist < minDist && dist < window.innerWidth * 0.1) {
             minDist = dist;
             closestIndex = index;
@@ -917,6 +916,7 @@
       toggleLanguage() {
         state.currentLang = state.currentLang === 'en' ? 'uk' : 'en';
         this.updateUI();
+        elements.langBtn.textContent = state.currentLang === 'en' ? 'UK' : 'EN';
         this.playSound(audio.sparkle);
       }
 
@@ -957,10 +957,12 @@
         const t = translations[state.currentLang];
         document.title = t.title;
         elements.loadingText.textContent = t.loading;
+        document.querySelector('#loading p').textContent = t.cameraPrompt;
         elements.applyAllBtn.textContent = t.allFingers;
         elements.selectFingerBtn.textContent = t.pickFinger;
         elements.handIndicator.innerHTML = `<span>Hand</span><span>${t.handNotDetected}</span>`;
-        elements.langBtn.textContent = state.currentLang === 'en' ? 'EN' : 'UK';
+        elements.cameraIndicator.innerHTML = `<span>Camera</span><span>${t.cameraActive}</span>`;
+        elements.langBtn.textContent = state.currentLang === 'en' ? 'UK' : 'EN';
         this.updateSoundButton();
       }
 
@@ -987,7 +989,7 @@
         camera.left = -window.innerWidth / 2;
         camera.right = window.innerWidth / 2;
         camera.top = window.innerHeight / 2;
-        camera.bottom = = -window.innerHeight / 2;
+        camera.bottom = -window.innerHeight / 2;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
       }
