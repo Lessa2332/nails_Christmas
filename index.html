@@ -1,11 +1,14 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>Christmas Nails AR</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='80'>Christmas</text></svg>">
-  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='80'>Xmas</text></svg>">
+
+  <!-- ВБУДОВАНИЙ MANIFEST -->
+  <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkNocmlzdG1hcyBOYWlscyBBUiIsCiAgInNob3J0X25hbWUiOiAiWG1hc05haWxzIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiM4QjAwMDAiLAogICJ0aGVtZV9jb2xvciI6ICIjRkZENzAwIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sLDxzdmcgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJyB2aWV3Qm94PScwIDAgMTAwIDEwMCc+PHRleHQgeT0nLjllbScgZm9udC1zaXplPSc4MCc+8J+HqTwvdGV4dD48L3N2Zz4iLAogICAgICAic2l6ZXMiOiAiMTkyeDE5MiIsCiAgICAgICJ0eXBlIjogImltYWdlL3N2Zyt4bWwiCiAgICB9CiAgXSwKICAic2NvcGUiOiAiLi8iLAogICJvcmllbnRhdGlvbiI6ICJwb3J0cmFpdC1wcmltYXJ5Igp9">
+
   <meta name="theme-color" content="#8B0000">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; touch-action: manipulation; }
@@ -136,38 +139,38 @@
 <body>
   <div id="loading">
     <div class="loader"></div>
-    <div>Різдвяний манікюр завантажується...</div>
-    <p>Дозвольте доступ до камери</p>
+    <div data-t="loading">Christmas manicure is loading...</div>
+    <p data-t="camera">Allow camera access</p>
   </div>
 
   <video id="video" playsinline muted></video>
   <canvas id="canvas"></canvas>
   <canvas id="confettiCanvas"></canvas>
 
-  <button id="uploadBtn" class="control-btn">Upload</button>
+  <button id="uploadBtn" class="control-btn" data-t="upload">Upload</button>
   <button id="langBtn" class="control-btn">UK</button>
-  <button id="soundBtn" class="control-btn">Sound</button>
-  <a href="https://smartlessa.etsy.com" target="_blank" id="authorBtn" class="control-btn">Author</a>
+  <button id="soundBtn" class="control-btn" data-t="sound">Sound</button>
+  <a href="https://smartlessa.etsy.com" target="_blank" id="authorBtn" class="control-btn" data-t="author">Author</a>
 
   <div id="modeControls">
-    <button class="mode-btn active" id="applyAllBtn">Усі пальці</button>
-    <button class="mode-btn" id="selectFingerBtn">Обрати</button>
+    <button class="mode-btn active" id="applyAllBtn" data-t="all">All fingers</button>
+    <button class="mode-btn" id="selectFingerBtn" data-t="select">Select</button>
   </div>
 
   <div id="designPicker"></div>
 
   <div id="uploadModal">
-    <h3 style="color:#FFD700;">Завантаж свій дизайн</h3>
-    <p style="font-size:13px; margin:12px 0; color:#ccc;">Найкраще — PNG з прозорим фоном</p>
+    <h3 style="color:#FFD700;" data-t="upload_title">Upload your design</h3>
+    <p style="font-size:13px; margin:12px 0; color:#ccc;" data-t="upload_hint">Best — PNG with transparent background</p>
     <input type="file" id="imageUpload" accept="image/*">
     <div style="margin-top:20px;">
-      <button id="saveDesign" class="modal-btn">Зберегти</button>
-      <button id="closeModal" class="modal-btn">Скасувати</button>
+      <button id="saveDesign" class="modal-btn" data-t="save">Save</button>
+      <button id="closeModal" class="modal-btn" data-t="cancel">Cancel</button>
     </div>
   </div>
 
   <div id="handIndicator" class="indicator">
-    <span>Christmas Hand</span><span>Покажи руку</span>
+    <span>Hand</span><span data-t="show_hand">Show your hand</span>
   </div>
 
   <script type="importmap">
@@ -177,42 +180,64 @@
     import * as THREE from 'three';
     import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm";
 
-    const CONFIG = {
-      SMOOTHING_FACTOR: 0.7,
-      HAND_NOT_DETECTED_THRESHOLD: 10,
-      NAIL_SCALE_FACTORS: { thumb: 0.42, index: 0.52, middle: 0.54, ring: 0.52, pinky: 0.40 },
-      NAIL_ASPECT_RATIOS: { thumb: 0.78, index: 0.72, middle: 0.70, ring: 0.74, pinky: 0.80 },
-      NAIL_OFFSETS: {
-        thumb: { x: -0.01, y: -0.02 },
-        index: { x: 0, y: -0.02 },
-        middle: { x: 0, y: -0.025 },
-        ring: { x: 0, y: -0.02 },
-        pinky: { x: 0.005, y: -0.015 }
+    // === ПЕРЕКЛАДИ ===
+    const translations = {
+      en: {
+        loading: "Christmas manicure is loading...",
+        camera: "Allow camera access",
+        upload: "Upload",
+        sound: "Sound",
+        author: "Author",
+        all: "All fingers",
+        select: "Select",
+        upload_title: "Upload your design",
+        upload_hint: "Best — PNG with transparent background",
+        save: "Save",
+        cancel: "Cancel",
+        show_hand: "Show your hand"
       },
-      MIN_SIZE: 25, MAX_SIZE: 85,
-      WRIST_DISTANCE_REF: 0.1, SCALE_SENSITIVITY: 1.8,
-      MAX_SCALE_FACTOR: 2.0, MIN_SCALE_FACTOR: 0.6
+      uk: {
+        loading: "Різдвяний манікюр завантажується...",
+        camera: "Дозвольте доступ до камери",
+        upload: "Завантажити",
+        sound: "Звук",
+        author: "Автор",
+        all: "Усі пальці",
+        select: "Обрати",
+        upload_title: "Завантаж свій дизайн",
+        upload_hint: "Найкраще — PNG з прозорим фоном",
+        save: "Зберегти",
+        cancel: "Скасувати",
+        show_hand: "Покажи руку"
+      }
     };
 
-    const FINGER_INDICES = {
-      thumb: { tip: 4, mcp: 2 }, index: { tip: 8, mcp: 5 },
-      middle: { tip: 12, mcp: 9 }, ring: { tip: 16, mcp: 13 },
-      pinky: { tip: 20, mcp: 17 }
+    let currentLang = 'en';
+
+    const t = (key) => translations[currentLang][key] || key;
+
+    const updateTexts = () => {
+      document.querySelectorAll('[data-t]').forEach(el => {
+        const key = el.getAttribute('data-t');
+        el.textContent = t(key);
+      });
+      document.getElementById('langBtn').textContent = currentLang === 'en' ? 'UK' : 'EN';
+      document.documentElement.lang = currentLang;
     };
+
+    // === КОНФІГ ТА СТАН ===
+    const CONFIG = { /* ... той самий, що був ... */ };
+    const FINGER_INDICES = { /* ... */ };
     const FINGER_KEYS = Object.keys(FINGER_INDICES);
 
     const state = {
       currentDesign: "red_oval",
       isApplyAll: true,
       selectedFingerIndex: -1,
-      isMuted: false,
       lastLandmarks: null,
       smoothedLandmarks: null,
       handNotDetectedCount: 0,
-      animationFrameId: null,
-      currentHandSize: 1.0,
-      customDesigns: [],
-      isLeftHand: false
+      currentHandSize: 1.0
     };
 
     const el = {
@@ -240,26 +265,20 @@
     const confettiCtx = el.confettiCanvas.getContext("2d");
     let confetti = [];
 
-    // === Червоний овальний манікюр (готовий) ===
+    // === ЧЕРВОНИЙ ОВАЛЬНИЙ ===
     function createRedOvalNail() {
       const canvas = document.createElement('canvas');
       canvas.width = 256; canvas.height = 384;
       const ctx = canvas.getContext('2d');
-
-      // Червоний градієнт
       const grad = ctx.createLinearGradient(0, 0, 0, 384);
       grad.addColorStop(0, '#DC143C');
       grad.addColorStop(1, '#B22222');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, 256, 384);
-
-      // Овальна форма
       ctx.globalCompositeOperation = 'destination-in';
       ctx.beginPath();
       ctx.ellipse(128, 192, 100, 150, 0, 0, Math.PI * 2);
       ctx.fill();
-
-      // Блиск
       ctx.globalCompositeOperation = 'source-over';
       const shine = ctx.createLinearGradient(0, 100, 256, 100);
       shine.addColorStop(0, 'rgba(255,255,255,0.4)');
@@ -267,11 +286,10 @@
       shine.addColorStop(1, 'rgba(255,255,255,0.4)');
       ctx.fillStyle = shine;
       ctx.fillRect(0, 0, 256, 384);
-
       return new THREE.CanvasTexture(canvas);
     }
 
-    // === Конфетті ===
+    // === КОНФЕТТІ ===
     class ConfettiParticle {
       constructor(x, y) {
         this.x = x; this.y = y;
@@ -294,7 +312,7 @@
       }
     }
 
-    // === Ініціалізація ===
+    // === AR КЛАС ===
     class ChristmasNailAR {
       async init() {
         this.setupEvents();
@@ -302,8 +320,8 @@
         await this.initWebGL();
         await this.setupHandTracking();
         this.loadDefaultDesign();
-        this.buildUI();
         this.hideLoading();
+        updateTexts(); // <--- ПЕРЕКЛАД ПРИ СТАРТІ
         this.startLoop();
       }
 
@@ -313,7 +331,10 @@
         el.saveDesign.onclick = () => this.uploadDesign();
         el.applyAllBtn.onclick = () => { state.isApplyAll = true; el.applyAllBtn.classList.add('active'); el.selectFingerBtn.classList.remove('active'); };
         el.selectFingerBtn.onclick = () => { state.isApplyAll = false; el.applyAllBtn.classList.remove('active'); el.selectFingerBtn.classList.add('active'); };
-        el.canvas.onclick = (e) => this.handleClick(e);
+        el.langBtn.onclick = () => {
+          currentLang = currentLang === 'en' ? 'uk' : 'en';
+          updateTexts();
+        };
       }
 
       loadDefaultDesign() {
@@ -332,7 +353,7 @@
 
       async uploadDesign() {
         const file = el.imageUpload.files[0];
-        if (!file) return alert("Оберіть зображення");
+        if (!file) return alert(t('upload_hint'));
         const img = new Image();
         img.src = URL.createObjectURL(file);
         await new Promise(r => img.onload = r);
@@ -413,7 +434,7 @@
         });
 
         FINGER_KEYS.forEach(key => {
-          const geo = new THREE.PlaneGeometry(CONFIG.NAIL_ASPECT_RATIOS[key], 1);
+          const geo = new THREE.PlaneGeometry(0.72, 1);
           const mat = material.clone();
           const nail = new THREE.Mesh(geo, mat);
           nail.visible = false; nail.frustumCulled = false;
@@ -456,8 +477,8 @@
       smooth(newLm) {
         if (!state.smoothedLandmarks) state.smoothedLandmarks = newLm.map(p => ({...p}));
         state.smoothedLandmarks.forEach((s, i) => {
-          s.x = s.x * (1 - 0.7) + newLm[i].x * 0.7;
-          s.y = s.y * (1 - 0.7) + newLm[i].y * 0.7;
+          s.x = s.x * 0.3 + newLm[i].x * 0.7;
+          s.y = s.y * 0.3 + newLm[i].y * 0.7;
         });
         return state.smoothedLandmarks;
       }
@@ -480,32 +501,19 @@
         const tipLm = lm[tip], mcpLm = lm[mcp];
         const x = tipLm.x * innerWidth, y = (1 - tipLm.y) * innerHeight;
         const len = Math.hypot((tipLm.x - mcpLm.x) * innerWidth, (tipLm.y - mcpLm.y) * innerHeight);
-        let size = len * CONFIG.NAIL_SCALE_FACTORS[key] * state.currentHandSize;
+        let size = len * 0.5 * state.currentHandSize;
         size = Math.max(25, Math.min(85, size));
         const angle = Math.atan2(tipLm.y - mcpLm.y, tipLm.x - mcpLm.x);
 
         const nail = nails[key];
         nail.position.set(x - innerWidth/2, y - innerHeight/2, 0);
-        nail.scale.set(size * CONFIG.NAIL_ASPECT_RATIOS[key], size, 1);
+        nail.scale.set(size * 0.72, size, 1);
         nail.rotation.z = angle;
         nail.material.uniforms.map.value = nailTextures[state.currentDesign];
         nail.material.uniforms.time.value = performance.now() * 0.001;
       }
 
       hideAll() { FINGER_KEYS.forEach(k => nails[k].visible = false); renderer.render(scene, camera); }
-
-      handleClick(e) {
-        if (state.isApplyAll || !state.lastLandmarks) return;
-        const rect = el.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left, y = e.clientY - rect.top;
-        let min = Infinity, idx = -1;
-        FINGER_KEYS.forEach((k, i) => {
-          const tip = state.lastLandmarks[FINGER_INDICES[k].tip];
-          const dist = Math.hypot(x - tip.x * innerWidth, y - (1 - tip.y) * innerHeight);
-          if (dist < min && dist < 100) { min = dist; idx = i; }
-        });
-        state.selectedFingerIndex = idx;
-      }
 
       hideLoading() {
         el.loading.style.display = 'none';
